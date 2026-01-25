@@ -1,4 +1,4 @@
-import { OptionSignalLite } from '../shared.ts';
+import { OptionSignalLite } from '../shared.js';
 
 /**
  * Computes a hedge score for each signal based on various factors.

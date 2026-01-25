@@ -2,7 +2,7 @@ import {
   SymbolSentimentExtended,
   SymbolSentimentBase,
   ThresholdPolicy,
-} from '../shared.ts';
+} from '../shared.js';
 
 /**
  * Aggregates sentiment from signals.
@@ -101,11 +101,11 @@ function processConfiguration({
 }) {
   const hl = Math.max(1, halfLifeMins);
   const alphaVal = Number.isFinite(alpha)
-    ? Math.max(0, Math.min(1, alpha))
+    ? Math.max(0, Math.min(1, alpha ?? 0))
     : 0.5;
   const policy = aggregationPolicy || 'standard';
   const auxWeight = Number.isFinite(auxShortPutWeight)
-    ? Math.max(0, Math.min(1, auxShortPutWeight))
+    ? Math.max(0, Math.min(1, auxShortPutWeight ?? 0))
     : 0.35;
 
   return { hl, alphaVal, policy, auxWeight, thresholdPolicy, debug };
@@ -172,20 +172,20 @@ function calculateMarketCapAndThreshold(
         ? thresholdPolicy.capRatio
         : 2e-6;
       const capMin = Number.isFinite(thresholdPolicy.capMin)
-        ? thresholdPolicy.capMin
+        ? (thresholdPolicy.capMin ?? 200_000)
         : 200_000;
       const capMax = Number.isFinite(thresholdPolicy.capMax)
-        ? thresholdPolicy.capMax
+        ? (thresholdPolicy.capMax ?? 5_000_000)
         : 5_000_000;
-      thresholdUsed = Math.max(capMin, Math.min(capMax, marketCap * capRatio));
+      thresholdUsed = Math.max(capMin, Math.min(capMax, marketCap * (capRatio ?? 1)));
     } else {
       thresholdUsed = Number.isFinite(thresholdPolicy.staticMinBullish)
-        ? thresholdPolicy.staticMinBullish
+        ? thresholdPolicy.staticMinBullish ?? 0
         : minBullishWindowNotional;
     }
   } else if (thresholdPolicy && thresholdPolicy.mode === 'static') {
     thresholdUsed = Number.isFinite(thresholdPolicy.staticMinBullish)
-      ? thresholdPolicy.staticMinBullish
+      ? thresholdPolicy.staticMinBullish ?? 0
       : minBullishWindowNotional;
   }
 

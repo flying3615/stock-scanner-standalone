@@ -1,8 +1,8 @@
 import YahooFinance from 'yahoo-finance2';
 const yahooFinance = new YahooFinance();
-import { OptionSignalLite } from '../shared.ts';
-import { timeout, toNum, minutesSince, computePos, classify } from '../util.ts';
-import { identifyCombos } from './combos.ts';
+import { OptionSignalLite } from '../shared.js';
+import { timeout, toNum, minutesSince, computePos, classify } from '../util.js';
+import { identifyCombos } from './combos.js';
 
 // Timeouts (ms) to guard yahooFinance.options() calls
 const CHAIN_TIMEOUT_MS = 15_000; // per-expiration options chain fetch
@@ -152,7 +152,7 @@ export async function processExpirations(
         `[processExpirations] Options chain fetched for ${symbol} at ${expDate.toISOString()}`
       );
 
-    const legs = Array.isArray(chain?.options) ? chain.options : [];
+    const legs = Array.isArray((chain as any)?.options) ? (chain as any).options : [];
     for (const leg of legs) {
       const expISO =
         leg?.expirationDate instanceof Date

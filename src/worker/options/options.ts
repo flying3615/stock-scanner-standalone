@@ -1,18 +1,18 @@
-import { OptionsAnalysis, OptionSignalLite } from '../shared.ts';
-import { calculateMoneyFlowStrength, withinDays } from '../util.ts';
-import { fetchOptionsData } from './fetch.ts';
-import { processExpirations } from './processing.ts';
-import { aggregateSentiment } from './sentiment.ts';
-import { identifyCombos } from './combos.ts';
-import { computeHedgeScoreForSignal } from './hedge.ts';
-import { getDaysToEarnings } from './earnings.ts';
+import { OptionsAnalysis, OptionSignalLite } from '../shared.js';
+import { calculateMoneyFlowStrength, withinDays } from '../util.js';
+import { fetchOptionsData } from './fetch.js';
+import { processExpirations } from './processing.js';
+import { aggregateSentiment } from './sentiment.js';
+import { identifyCombos } from './combos.js';
+import { computeHedgeScoreForSignal } from './hedge.js';
+import { getDaysToEarnings } from './earnings.js';
 import {
   analyzeOptionsSignals,
   FetchedOptionsData,
   DailyDataRecord,
   processOptionsContracts,
   convertDailyDataToFetchedOptionsData,
-} from './history.ts';
+} from './history.js';
 
 /**
  * Calculate overall signal quality score (0-1).
@@ -124,7 +124,7 @@ export async function scanSymbolOptions(
     .filter((d) => !isNaN(d.getTime()) && withinDays(d, 30));
   if (
     scanCfg &&
-    Number.isFinite(scanCfg.limitExpirations) &&
+    typeof scanCfg.limitExpirations === 'number' &&
     scanCfg.limitExpirations > 0
   ) {
     const lim = Math.floor(scanCfg.limitExpirations);
@@ -132,10 +132,10 @@ export async function scanSymbolOptions(
   }
 
   const isRegular = (marketState || '').toUpperCase() === 'REGULAR';
-  const regFresh = Number.isFinite(scanCfg?.regularFreshWindowMins)
+  const regFresh = scanCfg?.regularFreshWindowMins && Number.isFinite(scanCfg.regularFreshWindowMins)
     ? Math.max(1, Math.floor(scanCfg.regularFreshWindowMins))
     : 60;
-  const nonRegFresh = Number.isFinite(scanCfg?.nonRegularFreshWindowMins)
+  const nonRegFresh = scanCfg?.nonRegularFreshWindowMins && Number.isFinite(scanCfg.nonRegularFreshWindowMins)
     ? Math.max(1, Math.floor(scanCfg.nonRegularFreshWindowMins))
     : 24 * 60;
   const freshWindowMins = isRegular ? regFresh : nonRegFresh;

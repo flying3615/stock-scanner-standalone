@@ -1,6 +1,6 @@
 // Helper function to adjust weekend dates to trading days
 import { fetchDirectChart, fetchDirectQuote } from './yahoo-direct.js';
-import { TechnicalIndicatorsResult } from './shared.ts';
+import { TechnicalIndicatorsResult } from './shared.js';
 
 export const adjustToTradingDay = (dateStr: string): string => {
   try {
@@ -193,8 +193,8 @@ export async function calculateTechnicalIndicators(
 
     const quotes = chart.quotes;
     const prices = quotes
-      .map((q) => q.close)
-      .filter((p) => p != null) as number[];
+      .map((q: any) => q.close)
+      .filter((p: any) => p != null) as number[];
 
     if (prices.length < 50) {
       return {
@@ -266,8 +266,8 @@ export async function calculateTechnicalIndicators(
     if (quotes.length >= 6) {
       const volumes = quotes
         .slice(-6, -1)
-        .map((q) => q.volume)
-        .filter((v) => v != null) as number[];
+        .map((q: any) => q.volume)
+        .filter((v: any) => v != null) as number[];
       if (volumes.length >= 5) {
         const avgVolume = volumes.reduce((a, b) => a + b, 0) / volumes.length;
         const currentVolume = quotes[quotes.length - 1].volume;

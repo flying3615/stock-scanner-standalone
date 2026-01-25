@@ -1,7 +1,7 @@
 import YahooFinance from 'yahoo-finance2';
 const yahooFinance = new YahooFinance();
-import { timeout } from '../util.ts';
-import { getDaysToEarnings } from './earnings.ts';
+import { timeout } from '../util.js';
+import { getDaysToEarnings } from './earnings.js';
 
 const QUOTE_TIMEOUT_MS = 30000; // Increased to 30s
 const QUOTE_BATCH_SIZE = 20; // Reduced from 50

@@ -1,6 +1,6 @@
 import YahooFinance from 'yahoo-finance2';
 const yahooFinance = new YahooFinance();
-import { timeout } from '../util.ts';
+import { timeout } from '../util.js';
 
 const EARNINGS_TIMEOUT_MS = 5000;
 

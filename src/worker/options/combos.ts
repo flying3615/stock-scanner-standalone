@@ -1,5 +1,5 @@
-import { OptionSignalLite } from '../shared.ts';
-import { simpleHash } from '../util.ts';
+import { OptionSignalLite } from '../shared.js';
+import { simpleHash } from '../util.js';
 
 /**
  * Identifies combo strategies (straddles, strangles, spreads) from a list of signals.

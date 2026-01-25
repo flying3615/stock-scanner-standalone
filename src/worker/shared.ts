@@ -357,7 +357,7 @@ export type ConditionOptionsWithSrc = ConditionOptions & {
 };
 
 export interface Strategy<T> {
-  run(_): T;
+  run(_: any): T;
 }
 
 export interface CompanyFundamentalsArgs {

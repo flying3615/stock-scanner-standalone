@@ -1,4 +1,4 @@
-import { fetchOptionsData } from './fetch.ts';
+import { fetchOptionsData } from './fetch.js';
 
 // Define a reusable type for daily aggregated data to fix type errors
 export type DailyDataRecord = {
@@ -51,9 +51,9 @@ export async function fetchOptionsHistoryData(
   // Get all future expiration dates and select the nearest ones (e.g., up to 5)
   const now = new Date();
   const nearTermExpirations = base.expirationDates
-    .map((d) => new Date(d))
-    .filter((exp) => exp >= now) // Only look at future expirations
-    .sort((a, b) => a.getTime() - b.getTime())
+    .map((d: any) => new Date(d))
+    .filter((exp: Date) => exp >= now) // Only look at future expirations
+    .sort((a: Date, b: Date) => a.getTime() - b.getTime())
     .slice(0, 5); // Select the 5 nearest-term expirations
 
   if (nearTermExpirations.length === 0) {
@@ -338,8 +338,8 @@ export function analyzeOptionsSignals(data: Array<FetchedOptionsData>): {
         strength = Math.min(
           1,
           callOiChange * 5 +
-            (current.totalVolume / volumeThreshold) * 0.2 +
-            (ivIncreased ? 0.2 : 0)
+          (current.totalVolume / volumeThreshold) * 0.2 +
+          (ivIncreased ? 0.2 : 0)
         );
       }
       // Bearish: High put activity, OI increasing, especially if IV is also up
@@ -352,8 +352,8 @@ export function analyzeOptionsSignals(data: Array<FetchedOptionsData>): {
         strength = Math.min(
           1,
           putOiChange * 5 +
-            (current.totalVolume / volumeThreshold) * 0.2 +
-            (ivIncreased ? 0.2 : 0)
+          (current.totalVolume / volumeThreshold) * 0.2 +
+          (ivIncreased ? 0.2 : 0)
         );
       }
       // Exit: OI decreasing on high volume
@@ -363,7 +363,7 @@ export function analyzeOptionsSignals(data: Array<FetchedOptionsData>): {
         strength = Math.min(
           1,
           Math.abs(callOiChange + putOiChange) * 3 +
-            (current.totalVolume / volumeThreshold) * 0.2
+          (current.totalVolume / volumeThreshold) * 0.2
         );
       }
       // Neutral/Mixed: High volume but OI is flat or both sides increase
@@ -394,14 +394,12 @@ export function analyzeOptionsSignals(data: Array<FetchedOptionsData>): {
     recentActivity = lastSignal.description;
   } else if (pcrTrend === 'increasing') {
     trend = 'bearish';
-    recentActivity = `近期PCR持续上升${
-      ivTrend === 'increasing' ? '且IV同步走高' : ''
-    }，市场情绪趋于谨慎`;
+    recentActivity = `近期PCR持续上升${ivTrend === 'increasing' ? '且IV同步走高' : ''
+      }，市场情绪趋于谨慎`;
   } else if (pcrTrend === 'decreasing') {
     trend = 'bullish';
-    recentActivity = `近期PCR持续下降${
-      ivTrend === 'decreasing' ? '且IV同步回落' : ''
-    }，市场情绪趋于乐观`;
+    recentActivity = `近期PCR持续下降${ivTrend === 'decreasing' ? '且IV同步回落' : ''
+      }，市场情绪趋于乐观`;
   }
 
   return {
