@@ -123,7 +123,7 @@ function App() {
                 {/* Score */}
                 <div className="shrink-0 flex items-center">
                   <div className={`
-                                px-2 py-0.5 rounded text-[10px] font-bold h-fit
+                                px-2 py-0.5 rounded text-xs font-bold h-fit
                                 ${stock.valueScore && stock.valueScore >= 5 ? 'bg-green-500/20 text-green-400' :
                       stock.valueScore && stock.valueScore >= 3 ? 'bg-yellow-500/20 text-yellow-400' :
                         'bg-red-500/20 text-red-400'}
@@ -140,7 +140,7 @@ function App() {
                 </div>
 
                 {/* Vol */}
-                <div className="shrink-0 text-[10px] text-neutral-500 pb-0.5">
+                <div className="shrink-0 text-xs text-neutral-500 pb-0.5">
                   Vol: {(stock.volume / 1000000).toFixed(1)}M
                 </div>
               </div>

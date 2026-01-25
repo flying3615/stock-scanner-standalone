@@ -11,8 +11,8 @@ export function MoneyFlowGauge({ value, small = false }: { value: number, small?
             <div className="w-full h-full flex flex-col justify-end">
                 {/* Value Label (Tiny, centered or right aligned) */}
                 <div className="flex justify-between items-end mb-0.5 px-1">
-                    <span className="text-[8px] text-gray-600 uppercase tracking-wider">MFI</span>
-                    <span className={`text-[9px] font-bold font-mono leading-none ${value > 0.05 ? 'text-green-400' : value < -0.05 ? 'text-red-400' : 'text-gray-400'}`}>
+                    <span className="text-[10px] text-gray-500 uppercase tracking-wider font-bold">MFI</span>
+                    <span className={`text-xs font-bold font-mono leading-none ${value > 0.05 ? 'text-green-400' : value < -0.05 ? 'text-red-400' : 'text-gray-400'}`}>
                         {value > 0 ? '+' : ''}{value.toFixed(2)}
                     </span>
                 </div>
