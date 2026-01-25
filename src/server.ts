@@ -32,7 +32,7 @@ app.use(express.json());
 // Market Movers Endpoint
 app.get('/api/movers', async (req, res) => {
     const type = (req.query.type as MoverType) || 'active';
-    const limit = Number(req.query.limit) || 12; // Fetch slight more for grid
+    const limit = Number(req.query.limit) || 20; // Fetch slight more for grid
     const cacheKey = `movers_${type}_${limit}`;
 
     const cached = cache.get(cacheKey);

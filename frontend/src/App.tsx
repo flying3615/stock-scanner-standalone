@@ -29,7 +29,7 @@ function App() {
     setLoading(true);
     try {
       const { data } = await axios.get(`${API_URL}/movers`, {
-        params: { type: moversType, limit: 12 }
+        params: { type: moversType, limit: 20 }
       });
       setMovers(data);
     } catch (err) {
