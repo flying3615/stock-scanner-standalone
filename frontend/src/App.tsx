@@ -1,14 +1,8 @@
 
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import axios from 'axios';
 import {
-  TrendingUp,
-  TrendingDown,
   Activity,
-  Search,
-  AlertCircle,
-  ChevronRight,
-  DollarSign,
   BarChart2
 } from 'lucide-react';
 
@@ -245,7 +239,7 @@ function App() {
                     <MetricCard label="P/E Ratio" value={selectedStock.valueMetrics?.pe?.toFixed(2) ?? 'N/A'} sub="Target < 15" good={selectedStock.valueMetrics?.pe ? selectedStock.valueMetrics.pe < 15 : false} />
                     <MetricCard label="P/B Ratio" value={selectedStock.valueMetrics?.pb?.toFixed(2) ?? 'N/A'} sub="Target < 1.5" good={selectedStock.valueMetrics?.pb ? selectedStock.valueMetrics.pb < 1.5 : false} />
                     <MetricCard label="ROE" value={selectedStock.valueMetrics?.roe ? selectedStock.valueMetrics.roe.toFixed(1) + '%' : 'N/A'} sub="Target > 15%" good={selectedStock.valueMetrics?.roe ? selectedStock.valueMetrics.roe > 15 : false} />
-                    <MetricCard label="Debt/Equity" value={selectedStock.valueMetrics?.debtToEquity?.toFixed(1) + '%' ?? 'N/A'} sub="Target < 50%" good={selectedStock.valueMetrics?.debtToEquity ? selectedStock.valueMetrics.debtToEquity < 50 : false} />
+                    <MetricCard label="Debt/Equity" value={selectedStock.valueMetrics?.debtToEquity ? selectedStock.valueMetrics.debtToEquity.toFixed(1) + '%' : 'N/A'} sub="Target < 50%" good={selectedStock.valueMetrics?.debtToEquity ? selectedStock.valueMetrics.debtToEquity < 50 : false} />
                   </div>
 
                   {selectedStock.reasons && selectedStock.reasons.length > 0 && (
