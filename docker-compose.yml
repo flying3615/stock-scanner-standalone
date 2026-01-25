@@ -1,7 +1,7 @@
 services:
   stock-scanner:
     build: .
-    image: stock-scanner:latest
+    image: ghcr.io/flying3615/stock-scanner-standalone:latest
     container_name: stock-scanner
     restart: unless-stopped
     ports:
@@ -10,4 +10,3 @@ services:
       - ./data:/app/data
     environment:
       - DATABASE_URL=file:/app/data/dev.db
-      - POLYGON_API_KEY=${POLYGON_API_KEY}
