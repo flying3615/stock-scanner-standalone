@@ -95,13 +95,13 @@ export function StockDetailModal({
                                     label="P/E Ratio"
                                     value={selectedStock.valueMetrics?.pe?.toFixed(2) ?? 'N/A'}
                                     sub={`Target < ${selectedStock.thresholds?.peMax ?? 20}`}
-                                    good={selectedStock.valueMetrics?.pe ? selectedStock.valueMetrics.pe < (selectedStock.thresholds?.peMax ?? 20) : false}
+                                    good={selectedStock.valueMetrics?.pe ? (selectedStock.valueMetrics.pe > 0 && selectedStock.valueMetrics.pe < (selectedStock.thresholds?.peMax ?? 20)) : false}
                                 />
                                 <MetricCard
                                     label="P/B Ratio"
                                     value={selectedStock.valueMetrics?.pb?.toFixed(2) ?? 'N/A'}
                                     sub={`Target < ${selectedStock.thresholds?.pbMax ?? 3}`}
-                                    good={selectedStock.valueMetrics?.pb ? selectedStock.valueMetrics.pb < (selectedStock.thresholds?.pbMax ?? 3) : false}
+                                    good={selectedStock.valueMetrics?.pb ? (selectedStock.valueMetrics.pb > 0 && selectedStock.valueMetrics.pb < (selectedStock.thresholds?.pbMax ?? 3)) : false}
                                 />
                                 <MetricCard
                                     label="ROE"
