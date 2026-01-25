@@ -11,7 +11,8 @@
     "server": "tsx src/server.ts",
     "client": "cd frontend && npm run dev",
     "dashboard": "concurrently \"npm run server\" \"npm run client\"",
-    "dev": "nodemon --watch 'src/**/*.ts' --exec 'tsx' src/index.ts"
+    "dev": "nodemon --watch 'src/**/*.ts' --exec 'tsx' src/index.ts",
+    "docker:update": "docker-compose pull && docker-compose up -d"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",
