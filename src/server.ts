@@ -121,7 +121,9 @@ const frontendPath = path.join(__dirname, '../frontend/dist');
 app.use(express.static(frontendPath));
 
 // Handle React Routing (SPA) - Return index.html for all non-API routes
-app.get('*', (req, res) => {
+// Note: Express 5 requires parameter name for capture groups or explicit regex. 
+// Using regex /.*/ or (.*) pattern.
+app.get(/(.*)/, (req, res) => {
     res.sendFile(path.join(frontendPath, 'index.html'));
 });
 
