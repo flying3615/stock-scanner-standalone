@@ -181,13 +181,13 @@ export async function processExpirations(
           }
 
           const callOTMMin = Number.isFinite(scanCfg?.callOTMMin)
-            ? Math.max(1.0, Math.min(2, scanCfg.callOTMMin))
+            ? scanCfg.callOTMMin
             : 1.05;
           const callBandMax = Number.isFinite(scanCfg?.callBandMax)
-            ? Math.max(callOTMMin, Math.min(3, scanCfg.callBandMax))
+            ? scanCfg.callBandMax
             : 1.6;
           const putOTMMax = Number.isFinite(scanCfg?.putOTMMax)
-            ? Math.max(0.5, Math.min(1.0, scanCfg.putOTMMax))
+            ? scanCfg.putOTMMax
             : 0.95;
           const putBandMin = Number.isFinite(scanCfg?.putBandMin)
             ? Math.max(0.1, Math.min(putOTMMax, scanCfg.putBandMin))
@@ -256,11 +256,15 @@ export async function processExpirations(
           const spreadPct = mid > 0 ? (ask - bid) / mid : 1;
 
           const notional = volume * mid * 100;
-          const volOrNotional = volume >= 1000 || notional >= 200_000;
+          const minVol = Number.isFinite(scanCfg?.minVolume) ? scanCfg.minVolume : 1000;
+          const minNotional = Number.isFinite(scanCfg?.minNotional) ? scanCfg.minNotional : 200000;
+          const minNotionalNoRatio = Number.isFinite(scanCfg?.minNotionalNoRatio) ? scanCfg.minNotionalNoRatio : 400000;
+
+          const volOrNotional = volume >= minVol || notional >= minNotional;
           const ratio = openInterest > 0 ? volume / openInterest : null;
           const volOrNotionalAdj =
             ratio === null
-              ? volume >= 1000 || notional >= 400_000
+              ? volume >= minVol || notional >= minNotionalNoRatio
               : volOrNotional;
 
           const lastTradeRefRaw =
@@ -273,8 +277,9 @@ export async function processExpirations(
                   : lastTradeRefRaw * 1000
               )
               : lastTradeRefRaw;
+          const minRatio = Number.isFinite(scanCfg?.minRatio) ? scanCfg.minRatio : 1;
           const fresh = minutesSince(lastTradeRef) <= freshWindowMins;
-          const ratioOk = ratio === null ? true : ratio >= 1;
+          const ratioOk = ratio === null ? true : ratio >= minRatio;
           const valid = volOrNotionalAdj && ratioOk && fresh;
 
           if (!valid) {
@@ -284,7 +289,7 @@ export async function processExpirations(
                 console.log(
                   `[processExpirations] Below threshold: volume=${volume}, notional=${notional}, oi=${openInterest}`
                 );
-              } else if (ratio !== null && ratio < 1) {
+              } else if (ratio !== null && ratio < minRatio) {
                 dbg.ratioLow++;
                 console.log(
                   `[processExpirations] Ratio low: volume=${volume}, openInterest=${openInterest}, ratio=${ratio}`

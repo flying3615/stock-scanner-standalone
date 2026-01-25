@@ -12,8 +12,13 @@ async function runOptionsScan(symbol: string) {
   try {
     const result = await scanSymbolOptions(symbol, true, {
       regularFreshWindowMins: 60,
-      nonRegularFreshWindowMins: 1440,
-      polygonApiKey: process.env.POLYGON_API_KEY
+      nonRegularFreshWindowMins: 4320, // 72 hours to cover weekends
+      polygonApiKey: process.env.POLYGON_API_KEY,
+      minVolume: 10,
+      minNotional: 5000,
+      minRatio: 0.01,
+      callOTMMin: 0.85,  // Allow slightly ITM
+      putOTMMax: 1.15    // Allow slightly ITM
     });
 
     console.log(`   Signal Strength: ${result.moneyFlowStrength.toFixed(2)}`);

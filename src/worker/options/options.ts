@@ -72,6 +72,10 @@ export async function scanSymbolOptions(
     putOTMMax?: number;
     putBandMin?: number;
     polygonApiKey?: string;
+    minVolume?: number;
+    minNotional?: number;
+    minNotionalNoRatio?: number;
+    minRatio?: number;
   }
 ): Promise<{
   moneyFlowStrength: number;

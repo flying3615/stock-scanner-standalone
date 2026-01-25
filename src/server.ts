@@ -68,8 +68,13 @@ app.get('/api/options/:symbol', async (req, res) => {
         console.log(`[API] Scanning options for ${symbol}...`);
         const result = await scanSymbolOptions(symbol, true, {
             regularFreshWindowMins: 60,
-            nonRegularFreshWindowMins: 1440,
-            polygonApiKey: process.env.POLYGON_API_KEY
+            nonRegularFreshWindowMins: 4320, // 72 hours to cover weekends
+            polygonApiKey: process.env.POLYGON_API_KEY,
+            minVolume: 10,
+            minNotional: 5000,
+            minRatio: 0.01,
+            callOTMMin: 0.85,
+            putOTMMax: 1.15
         });
 
         res.json({
