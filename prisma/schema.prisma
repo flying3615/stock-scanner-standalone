@@ -1,0 +1,54 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model StockSnapshot {
+  id                Int      @id @default(autoincrement())
+  symbol            String
+  date              DateTime @default(now())
+  price             Float
+  valueScore        Int
+  sentimentScore    Float
+  moneyFlowStrength Float
+  
+  // Relations
+  signals OptionSignal[]
+  combos  OptionCombo[]
+
+  @@index([symbol, date])
+}
+
+model OptionSignal {
+  id          Int           @id @default(autoincrement())
+  snapshotId  Int
+  type        String        // 'call' | 'put'
+  strike      Float
+  expiry      DateTime
+  notional    Float
+  direction   String        // 'buy' | 'sell'
+  
+  snapshot    StockSnapshot @relation(fields: [snapshotId], references: [id])
+  
+  @@index([snapshotId])
+}
+
+model OptionCombo {
+  id          Int           @id @default(autoincrement())
+  snapshotId  Int
+  strategy    String        // 'Bull Call Spread', 'Straddle', etc.
+  description String
+  notional    Float
+  riskProfile String?       // 'Bullish', 'Bearish', 'Hedge'
+  
+  snapshot    StockSnapshot @relation(fields: [snapshotId], references: [id])
+  
+  @@index([snapshotId])
+}

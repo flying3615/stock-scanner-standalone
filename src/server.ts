@@ -4,13 +4,24 @@ import cors from 'cors';
 import { fetchMarketMovers, MoverType } from './worker/scanner/market-movers.js';
 import { analyzeStockValue } from './worker/scanner/value-analyzer.js';
 import { scanSymbolOptions } from './worker/options/options.js';
+import { saveScanResult, getHistory } from './db/persistence.js';
+import { initScheduler } from './scheduler.js';
 import dotenv from 'dotenv';
 import { setTimeout } from 'timers/promises';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
 dotenv.config();
 
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+// Start Scheduler
+initScheduler();
 
 app.use(cors());
 app.use(express.json());
@@ -23,11 +34,7 @@ app.get('/api/movers', async (req, res) => {
         console.log(`[API] Fetching ${type} movers...`);
         const movers = await fetchMarketMovers(type, limit);
 
-        // Lightweight enrichment (optional, might slow down if we do full value analysis on all)
-        // For dashboard list, we might just want to return movers, and let frontend fetch value on demand or in background.
-        // But the user wants "Value Scanner", so let's try to fetch score for them in parallel or batch.
-
-        // Let's do a quick concurrent batch for value scores
+        // Lightweight enrichment
         const enriched = await Promise.all(movers.map(async (m) => {
             const val = await analyzeStockValue(m.symbol);
             return {
@@ -77,6 +84,13 @@ app.get('/api/options/:symbol', async (req, res) => {
             putOTMMax: 1.15
         });
 
+        // Save snapshot to history synchronously (awaited) to ensure race condition doesn't happen with history fetch
+        try {
+            await saveScanResult(symbol, result);
+        } catch (err) {
+            console.error(`[Server] Failed to save history for ${symbol}`, err);
+        }
+
         res.json({
             moneyFlowStrength: result.moneyFlowStrength,
             signals: result.signals,
@@ -88,6 +102,27 @@ app.get('/api/options/:symbol', async (req, res) => {
         console.error(error);
         res.status(500).json({ error: 'Options scan failed' });
     }
+});
+
+// History Endpoint
+app.get('/api/history/:symbol', async (req, res) => {
+    const symbol = req.params.symbol.toUpperCase();
+    try {
+        const history = await getHistory(symbol);
+        res.json(history);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Failed to fetch history' });
+    }
+});
+
+// Serve Frontend Static Files (Production/Docker)
+const frontendPath = path.join(__dirname, '../frontend/dist');
+app.use(express.static(frontendPath));
+
+// Handle React Routing (SPA) - Return index.html for all non-API routes
+app.get('*', (req, res) => {
+    res.sendFile(path.join(frontendPath, 'index.html'));
 });
 
 app.listen(PORT, () => {

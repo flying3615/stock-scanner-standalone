@@ -2,12 +2,13 @@
 import { scanSymbolOptions } from './worker/options/options.js';
 import { fetchMarketMovers, MoverType } from './worker/scanner/market-movers.js';
 import { analyzeStockValue } from './worker/scanner/value-analyzer.js';
+import { saveScanResult } from './db/persistence.js';
 import dotenv from 'dotenv';
 import { setTimeout } from 'timers/promises';
 
 dotenv.config();
 
-async function runOptionsScan(symbol: string) {
+async function runOptionsScan(symbol: string, valueAnalysis?: any) {
   console.log(`\n🔍 Scanning options for ${symbol}...`);
   try {
     const result = await scanSymbolOptions(symbol, true, {
@@ -20,6 +21,9 @@ async function runOptionsScan(symbol: string) {
       callOTMMin: 0.85,  // Allow slightly ITM
       putOTMMax: 1.15    // Allow slightly ITM
     });
+
+    // Save snapshot to database
+    await saveScanResult(symbol, result, valueAnalysis);
 
     console.log(`   Signal Strength: ${result.moneyFlowStrength.toFixed(2)}`);
     if (result.signals.length > 0) {
@@ -74,7 +78,7 @@ async function main() {
     if (topPicks.length > 0) {
       console.log('\n👀 Checking Options Flow for Top Picks...');
       for (const pick of topPicks) {
-        await runOptionsScan(pick.symbol);
+        await runOptionsScan(pick.symbol, pick);
       }
     }
 
@@ -91,7 +95,7 @@ async function main() {
       console.log(`   P/E: ${value.metrics.pe.toFixed(2)}, P/B: ${value.metrics.pb.toFixed(2)}, ROE: ${value.metrics.roe.toFixed(2)}%`);
       console.log(`   Reasons: ${value.reasons.join(', ')}`);
 
-      await runOptionsScan(symbol);
+      await runOptionsScan(symbol, value);
     }
 
   } else {
