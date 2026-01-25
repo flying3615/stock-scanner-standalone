@@ -4,6 +4,7 @@ import { fetchMarketMovers, MoverType } from './worker/scanner/market-movers.js'
 import { analyzeStockValue } from './worker/scanner/value-analyzer.js';
 import { scanSymbolOptions } from './worker/options/options.js';
 import { saveScanResult } from './db/persistence.js';
+import { captureDailySectorStats } from './worker/analytics/sector-trend.js';
 import { setTimeout } from 'timers/promises';
 
 const CRON_SCHEDULE = '30 16 * * 1-5'; // 4:30 PM on weekdays (adjust logic for server timezone if needed)
@@ -69,6 +70,9 @@ async function runDailyBatchScan() {
         }
 
         console.log(`[Scheduler] ✅ Daily batch scan completed at ${new Date().toISOString()}`);
+
+        // 3. Capture Sector Stats
+        await captureDailySectorStats();
 
     } catch (error) {
         console.error('[Scheduler] Critical error in daily batch scan:', error);

@@ -3,6 +3,7 @@ import express from 'express';
 import cors from 'cors';
 import { fetchMarketMovers, MoverType } from './worker/scanner/market-movers.js';
 import { calculateMoneyFlowStrength } from './worker/util.js';
+import { getSectorTrends } from './worker/analytics/sector-trend.js';
 import { analyzeStockValue } from './worker/scanner/value-analyzer.js';
 import { scanSymbolOptions } from './worker/options/options.js';
 import { saveScanResult, getHistory } from './db/persistence.js';
@@ -151,6 +152,17 @@ app.get('/api/history/:symbol', async (req, res) => {
     } catch (error) {
         console.error(error);
         res.status(500).json({ error: 'Failed to fetch history' });
+    }
+});
+
+// Analytics Endpoint
+app.get('/api/trends/sectors', async (req, res) => {
+    try {
+        const trends = await getSectorTrends(14); // Default 14 days
+        res.json(trends);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Failed to fetch sector trends' });
     }
 });
 

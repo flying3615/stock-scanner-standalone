@@ -52,3 +52,15 @@ export interface StockSnapshot {
     moneyFlowStrength: number;
     combos: OptionCombo[];
 }
+
+export interface SectorStat {
+    id: number;
+    date: string;
+    sector: string;
+    stockCount: number;
+    avgChange: number;
+    totalVolume: number;
+    leaderSymbol: string | null;
+    leaderChange: number | null;
+    rank: number;
+}

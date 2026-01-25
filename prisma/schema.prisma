@@ -52,3 +52,23 @@ model OptionCombo {
   
   @@index([snapshotId])
 }
+
+model SectorStat {
+  id           Int      @id @default(autoincrement())
+  date         DateTime @default(now())
+  sector       String
+  
+  // Metrics
+  stockCount   Int      // How many stocks in Top 20 constitute this sector
+  avgChange    Float    // Average % change of these stocks
+  totalVolume  Float    // Aggregate volume
+  
+  // Momentum Indicators
+  leaderSymbol String?  // Top stock in this sector
+  leaderChange Float?   // Top stock % change
+  
+  // Context
+  rank         Int      // Rank in the daily list (1st, 2nd, etc.)
+  
+  @@index([date, sector])
+}
