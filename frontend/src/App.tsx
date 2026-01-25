@@ -122,7 +122,7 @@ function App() {
                     <div className="text-xs">{stock.changePercent > 0 ? '+' : ''}{stock.changePercent.toFixed(2)}%</div>
                   </div>
                   {stock.sector && (
-                    <span className="text-[9px] px-1.5 py-0.5 rounded bg-neutral-700 text-gray-400 border border-neutral-600 truncate max-w-[80px]">
+                    <span className="text-[9px] px-1.5 py-0.5 rounded bg-neutral-700 text-gray-400 border border-neutral-600 truncate max-w-[120px]" title={stock.sector}>
                       {stock.sector}
                     </span>
                   )}
