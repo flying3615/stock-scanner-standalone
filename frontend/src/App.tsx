@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import axios from 'axios';
 import type { Stock, OptionSignal, StockSnapshot } from './types';
 import { StockDetailModal } from './components/StockDetailModal';
+import { MoneyFlowGauge } from './components/MoneyFlowGauge';
 
 // API Base URL
 const API_URL = 'http://localhost:3000/api';
@@ -132,6 +133,13 @@ function App() {
                   Vol: {(stock.volume / 1000000).toFixed(1)}M
                 </span>
               </div>
+
+              {/* Money Flow Gauge */}
+              {stock.moneyFlowStrength !== undefined && (
+                <div className="mt-3">
+                  <MoneyFlowGauge value={stock.moneyFlowStrength ?? 0} small />
+                </div>
+              )}
             </div>
           ))}
         </div>

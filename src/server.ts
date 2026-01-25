@@ -2,6 +2,7 @@
 import express from 'express';
 import cors from 'cors';
 import { fetchMarketMovers, MoverType } from './worker/scanner/market-movers.js';
+import { calculateMoneyFlowStrength } from './worker/util.js';
 import { analyzeStockValue } from './worker/scanner/value-analyzer.js';
 import { scanSymbolOptions } from './worker/options/options.js';
 import { saveScanResult, getHistory } from './db/persistence.js';
@@ -46,11 +47,17 @@ app.get('/api/movers', async (req, res) => {
 
         // Lightweight enrichment
         const enriched = await Promise.all(movers.map(async (m) => {
-            const val = await analyzeStockValue(m.symbol);
+            const [val, mfi] = await Promise.all([
+                analyzeStockValue(m.symbol),
+                calculateMoneyFlowStrength(m.symbol, 7)
+            ]);
+
             return {
                 ...m,
                 valueScore: val ? val.score : null,
                 valueMetrics: val ? val.metrics : null,
+                moneyFlowStrength: mfi,
+                sector: val ? val.sector : undefined,
                 reasons: val ? val.reasons : []
             };
         }));

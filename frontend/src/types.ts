@@ -14,6 +14,7 @@ export interface Stock {
     volume: number;
     valueScore?: number | null;
     valueMetrics?: ValueMetrics | null;
+    moneyFlowStrength?: number | null;
     sector?: string;
     thresholds?: {
         peMax: number;
