@@ -15,6 +15,13 @@ export interface Stock {
     valueScore?: number | null;
     valueMetrics?: ValueMetrics | null;
     sector?: string;
+    thresholds?: {
+        peMax: number;
+        peOver: number;
+        pbMax: number;
+        roeMin: number;
+        debtMax: number;
+    };
     reasons?: string[];
 }
 

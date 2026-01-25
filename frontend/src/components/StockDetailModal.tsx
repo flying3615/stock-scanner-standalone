@@ -88,10 +88,30 @@ export function StockDetailModal({
                             </h3>
 
                             <div className="grid grid-cols-2 gap-4 mb-6">
-                                <MetricCard label="P/E Ratio" value={selectedStock.valueMetrics?.pe?.toFixed(2) ?? 'N/A'} sub="Target Check Sector" good={selectedStock.valueMetrics?.pe ? selectedStock.valueMetrics.pe < 20 : false} />
-                                <MetricCard label="P/B Ratio" value={selectedStock.valueMetrics?.pb?.toFixed(2) ?? 'N/A'} sub="Target Check Sector" good={selectedStock.valueMetrics?.pb ? selectedStock.valueMetrics.pb < 3 : false} />
-                                <MetricCard label="ROE" value={selectedStock.valueMetrics?.roe ? selectedStock.valueMetrics.roe.toFixed(1) + '%' : 'N/A'} sub="Target > 15%" good={selectedStock.valueMetrics?.roe ? selectedStock.valueMetrics.roe > 15 : false} />
-                                <MetricCard label="Debt/Equity" value={selectedStock.valueMetrics?.debtToEquity ? selectedStock.valueMetrics.debtToEquity.toFixed(1) + '%' : 'N/A'} sub="Target < 200%" good={selectedStock.valueMetrics?.debtToEquity ? selectedStock.valueMetrics.debtToEquity < 200 : false} />
+                                <MetricCard
+                                    label="P/E Ratio"
+                                    value={selectedStock.valueMetrics?.pe?.toFixed(2) ?? 'N/A'}
+                                    sub={`Target < ${selectedStock.thresholds?.peMax ?? 20}`}
+                                    good={selectedStock.valueMetrics?.pe ? selectedStock.valueMetrics.pe < (selectedStock.thresholds?.peMax ?? 20) : false}
+                                />
+                                <MetricCard
+                                    label="P/B Ratio"
+                                    value={selectedStock.valueMetrics?.pb?.toFixed(2) ?? 'N/A'}
+                                    sub={`Target < ${selectedStock.thresholds?.pbMax ?? 3}`}
+                                    good={selectedStock.valueMetrics?.pb ? selectedStock.valueMetrics.pb < (selectedStock.thresholds?.pbMax ?? 3) : false}
+                                />
+                                <MetricCard
+                                    label="ROE"
+                                    value={selectedStock.valueMetrics?.roe ? selectedStock.valueMetrics.roe.toFixed(1) + '%' : 'N/A'}
+                                    sub={`Target > ${selectedStock.thresholds?.roeMin ?? 15}%`}
+                                    good={selectedStock.valueMetrics?.roe ? selectedStock.valueMetrics.roe > (selectedStock.thresholds?.roeMin ?? 15) : false}
+                                />
+                                <MetricCard
+                                    label="Debt/Equity"
+                                    value={selectedStock.valueMetrics?.debtToEquity ? selectedStock.valueMetrics.debtToEquity.toFixed(1) + '%' : 'N/A'}
+                                    sub={`Target < ${selectedStock.thresholds?.debtMax ?? 200}%`}
+                                    good={selectedStock.valueMetrics?.debtToEquity ? selectedStock.valueMetrics.debtToEquity < (selectedStock.thresholds?.debtMax ?? 200) : false}
+                                />
                             </div>
 
                             {selectedStock.reasons && selectedStock.reasons.length > 0 && (
