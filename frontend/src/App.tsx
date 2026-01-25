@@ -136,7 +136,7 @@ function App() {
 
               {/* Money Flow Gauge */}
               {stock.moneyFlowStrength !== undefined && (
-                <div className="mt-3">
+                <div className="mt-3 max-w-[60%]">
                   <MoneyFlowGauge value={stock.moneyFlowStrength ?? 0} small />
                 </div>
               )}
