@@ -26,7 +26,6 @@ interface Stock {
   volume: number;
   valueScore?: number | null;
   valueMetrics?: ValueMetrics | null;
-  sector?: string; // Added sector
   sector?: string;
   reasons?: string[];
 }
