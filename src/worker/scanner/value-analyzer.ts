@@ -15,6 +15,7 @@ export interface ValueScore {
         debtToEquity: number;
     };
     sector?: string;
+    industry?: string;
     thresholds?: SectorConfig;
     reasons: string[];
 }
@@ -144,6 +145,7 @@ export async function analyzeStockValue(symbol: string): Promise<ValueScore | nu
                 debtToEquity
             },
             sector,
+            industry: summaryProfile?.industry || undefined,
             thresholds: cfg, // Return the config used
             reasons
         };

@@ -110,10 +110,22 @@ function App() {
                 <div>
                   <h3 className="text-xl font-bold text-white group-hover:text-blue-400 transition-colors">{stock.symbol}</h3>
                   <p className="text-xs text-gray-500 truncate max-w-[150px]">{stock.name}</p>
+                  {stock.industry && (
+                    <p className="text-[10px] text-gray-600 truncate max-w-[150px] mt-0.5" title={stock.industry}>
+                      {stock.industry}
+                    </p>
+                  )}
                 </div>
-                <div className={`text-right ${stock.changePercent >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                  <div className="text-lg font-mono font-semibold">${stock.price.toFixed(2)}</div>
-                  <div className="text-xs">{stock.changePercent > 0 ? '+' : ''}{stock.changePercent.toFixed(2)}%</div>
+                <div className="flex flex-col items-end gap-1">
+                  <div className={`text-right ${stock.changePercent >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                    <div className="text-lg font-mono font-semibold">${stock.price.toFixed(2)}</div>
+                    <div className="text-xs">{stock.changePercent > 0 ? '+' : ''}{stock.changePercent.toFixed(2)}%</div>
+                  </div>
+                  {stock.sector && (
+                    <span className="text-[9px] px-1.5 py-0.5 rounded bg-neutral-700 text-gray-400 border border-neutral-600 truncate max-w-[80px]">
+                      {stock.sector}
+                    </span>
+                  )}
                 </div>
               </div>
 

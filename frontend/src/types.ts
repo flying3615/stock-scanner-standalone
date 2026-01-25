@@ -16,6 +16,7 @@ export interface Stock {
     valueMetrics?: ValueMetrics | null;
     moneyFlowStrength?: number | null;
     sector?: string;
+    industry?: string;
     thresholds?: {
         peMax: number;
         peOver: number;
