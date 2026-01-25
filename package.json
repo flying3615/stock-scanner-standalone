@@ -1,0 +1,33 @@
+{
+  "name": "stock-scanner-standalone",
+  "version": "1.0.0",
+  "description": "Standalone Options Signal Scanner (Extracted from stock-comparator)",
+  "main": "dist/index.js",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "start": "tsx src/index.ts",
+    "scan": "tsx src/index.ts",
+    "server": "tsx src/server.ts",
+    "client": "cd frontend && npm run dev",
+    "dashboard": "concurrently \"npm run server\" \"npm run client\"",
+    "dev": "nodemon --watch 'src/**/*.ts' --exec 'tsx' src/index.ts"
+  },
+  "dependencies": {
+    "chalk": "^4.1.2",
+    "concurrently": "^9.2.1",
+    "cors": "^2.8.6",
+    "dotenv": "^16.4.5",
+    "express": "^5.2.1",
+    "yahoo-finance2": "^3.13.0"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "@types/node": "^20.11.24",
+    "nodemon": "^3.1.0",
+    "ts-node": "^10.9.2",
+    "tsx": "^4.21.0",
+    "typescript": "^5.3.3"
+  }
+}

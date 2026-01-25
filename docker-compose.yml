@@ -1,0 +1,10 @@
+version: '3.8'
+services:
+  scanner:
+    build: .
+    volumes:
+      - ./src:/app/src
+    environment:
+      - POLYGON_API_KEY=${POLYGON_API_KEY}
+    # Keep container running for exec usage or run one-off
+    command: tail -f /dev/null 
