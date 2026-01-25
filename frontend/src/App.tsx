@@ -118,10 +118,12 @@ function App() {
               </div>
 
               {/* Value Badge */}
-              <div className="mt-4 flex items-center justify-between">
-                <div className="flex items-center gap-2">
+              {/* Footer Row: Score | MFI Gauge | Vol */}
+              <div className="mt-4 flex items-end gap-3 h-8">
+                {/* Score */}
+                <div className="shrink-0 flex items-center">
                   <div className={`
-                                px-2 py-1 rounded text-xs font-bold
+                                px-2 py-0.5 rounded text-[10px] font-bold h-fit
                                 ${stock.valueScore && stock.valueScore >= 5 ? 'bg-green-500/20 text-green-400' :
                       stock.valueScore && stock.valueScore >= 3 ? 'bg-yellow-500/20 text-yellow-400' :
                         'bg-red-500/20 text-red-400'}
@@ -129,17 +131,19 @@ function App() {
                     Score: {stock.valueScore ?? 'N/A'}/6
                   </div>
                 </div>
-                <span className="text-xs text-neutral-500">
-                  Vol: {(stock.volume / 1000000).toFixed(1)}M
-                </span>
-              </div>
 
-              {/* Money Flow Gauge */}
-              {stock.moneyFlowStrength !== undefined && (
-                <div className="mt-3 max-w-[60%]">
-                  <MoneyFlowGauge value={stock.moneyFlowStrength ?? 0} small />
+                {/* MFI Gauge (Middle) */}
+                <div className="flex-1 min-w-0 pb-0.5">
+                  {stock.moneyFlowStrength !== undefined && (
+                    <MoneyFlowGauge value={stock.moneyFlowStrength ?? 0} small />
+                  )}
                 </div>
-              )}
+
+                {/* Vol */}
+                <div className="shrink-0 text-[10px] text-neutral-500 pb-0.5">
+                  Vol: {(stock.volume / 1000000).toFixed(1)}M
+                </div>
+              </div>
             </div>
           ))}
         </div>
