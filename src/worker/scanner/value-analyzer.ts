@@ -18,6 +18,10 @@ export interface ValueScore {
     industry?: string;
     thresholds?: SectorConfig;
     reasons: string[];
+    // Search Enrichment
+    name?: string;
+    changePercent?: number;
+    volume?: number;
 }
 
 interface SectorConfig {
@@ -147,7 +151,11 @@ export async function analyzeStockValue(symbol: string): Promise<ValueScore | nu
             sector,
             industry: summaryProfile?.industry || undefined,
             thresholds: cfg, // Return the config used
-            reasons
+            reasons,
+            // Search Enrichment Fields
+            name: quote.price?.longName || symbol,
+            changePercent: quote.price?.regularMarketChangePercent ? (quote.price.regularMarketChangePercent * 100) : 0,
+            volume: quote.price?.regularMarketVolume || 0
         };
 
     } catch (error) {

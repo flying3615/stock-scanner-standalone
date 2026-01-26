@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
+import { Search } from 'lucide-react';
 import axios from 'axios';
 import type { Stock, OptionSignal, StockSnapshot } from './types';
 import { StockDetailModal } from './components/StockDetailModal';
@@ -22,6 +23,46 @@ function App() {
   const [viewMode, setViewMode] = useState<'analysis' | 'history'>('analysis');
   const [historyData, setHistoryData] = useState<StockSnapshot[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
+
+  // Search State
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isSearching, setIsSearching] = useState(false);
+
+  const handleSearch = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!searchQuery.trim()) return;
+
+    const symbol = searchQuery.toUpperCase();
+    setIsSearching(true);
+
+    try {
+      const { data } = await axios.get(`${API_URL}/value/${symbol}`);
+
+      // Map API response to Stock object
+      // Note: The /value endpoint returns a ValueScore object which we enriched
+      const stock: Stock = {
+        symbol: data.symbol,
+        name: data.name || data.symbol,
+        price: data.price,
+        changePercent: data.changePercent || 0,
+        volume: data.volume || 0,
+        valueScore: data.score,
+        valueMetrics: data.metrics,
+        sector: data.sector,
+        industry: data.industry,
+        thresholds: data.thresholds,
+        reasons: data.reasons
+      };
+
+      handleStockClick(stock);
+      setSearchQuery(''); // Clear search
+    } catch (err) {
+      console.error("Search failed", err);
+      alert(`Could not find stock: ${symbol}`);
+    } finally {
+      setIsSearching(false);
+    }
+  };
 
   // Load movers on mount or type change
   useEffect(() => {
@@ -80,6 +121,23 @@ function App() {
           </h1>
           <p className="text-gray-400 text-sm mt-1">Market Movers & Institutional Options Flow</p>
         </div>
+
+        {/* Search Bar */}
+        <form onSubmit={handleSearch} className="relative mx-4">
+          <input
+            type="text"
+            placeholder="Search Symbol (e.g. NVDA)..."
+            className="bg-neutral-800 border border-neutral-700 text-gray-200 text-sm rounded-full pl-10 pr-4 py-2 w-64 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all placeholder:text-gray-600"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            disabled={isSearching}
+          />
+          <Search className="absolute left-3 top-2.5 text-gray-500" size={16} />
+          {isSearching && (
+            <div className="absolute right-3 top-2.5 animate-spin rounded-full h-4 w-4 border-2 border-blue-500 border-t-transparent"></div>
+          )}
+        </form>
+
         <div className="flex gap-4">
           <div className="flex bg-neutral-800 rounded-lg p-1">
             <button
