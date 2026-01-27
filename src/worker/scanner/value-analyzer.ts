@@ -8,11 +8,12 @@ export interface ValueScore {
     price: number;
     score: number;
     metrics: {
-        pb: number;
-        pe: number;
-        roe: number;
-        profitMargin: number;
-        debtToEquity: number;
+        pb: number | null;
+        pe: number | null;
+        roe: number | null;
+        profitMargin: number | null;
+        debtToEquity: number | null;
+        growth?: number | null;
     };
     sector?: string;
     industry?: string;
@@ -30,24 +31,44 @@ interface SectorConfig {
     pbMax: number;    // "Good value" if below this
     roeMin: number;   // "Good quality" if above this
     debtMax: number;  // "Risky" if above this (Financials handle differently)
+    marginHealthy?: number;
+    marginStrong?: number;
+    lowDebtBonus?: number;
 }
 
 const DEFAULT_CONFIG: SectorConfig = {
-    peMax: 20, peOver: 50,
-    pbMax: 3.0,
-    roeMin: 12,
-    debtMax: 200 // 200%
+    peMax: 22, peOver: 55,
+    pbMax: 3.2,
+    roeMin: 11,
+    debtMax: 220, // 220%
+    marginHealthy: 10,
+    marginStrong: 25,
+    lowDebtBonus: 50
 };
 
 const SECTOR_CONFIGS: Record<string, SectorConfig> = {
-    'Technology': { peMax: 35, peOver: 70, pbMax: 8.0, roeMin: 15, debtMax: 150 },
-    'Communication Services': { peMax: 30, peOver: 60, pbMax: 5.0, roeMin: 12, debtMax: 150 },
-    'Consumer Cyclical': { peMax: 25, peOver: 50, pbMax: 4.0, roeMin: 15, debtMax: 200 },
-    'Financial Services': { peMax: 14, peOver: 25, pbMax: 1.5, roeMin: 8, debtMax: 500 }, // Banks leverage high debt/deposits
-    'Energy': { peMax: 12, peOver: 25, pbMax: 2.0, roeMin: 10, debtMax: 100 },
-    'Utilities': { peMax: 18, peOver: 30, pbMax: 2.0, roeMin: 8, debtMax: 300 }, // Capital intensive
-    'Real Estate': { peMax: 40, peOver: 80, pbMax: 3.0, roeMin: 5, debtMax: 400 }, // High debt is normal for REITs
-    'Healthcare': { peMax: 25, peOver: 50, pbMax: 5.0, roeMin: 10, debtMax: 150 }
+    'Technology': { peMax: 40, peOver: 85, pbMax: 9.0, roeMin: 16, debtMax: 140, marginHealthy: 12, marginStrong: 24, lowDebtBonus: 60 },
+    'Communication Services': { peMax: 32, peOver: 65, pbMax: 5.5, roeMin: 13, debtMax: 160, marginHealthy: 10, marginStrong: 22, lowDebtBonus: 70 },
+    'Consumer Cyclical': { peMax: 28, peOver: 60, pbMax: 4.5, roeMin: 14, debtMax: 210, marginHealthy: 8, marginStrong: 18, lowDebtBonus: 80 },
+    'Consumer Defensive': { peMax: 24, peOver: 50, pbMax: 4.0, roeMin: 12, debtMax: 200, marginHealthy: 9, marginStrong: 18, lowDebtBonus: 70 },
+    'Industrials': { peMax: 23, peOver: 48, pbMax: 3.5, roeMin: 11, debtMax: 240, marginHealthy: 8, marginStrong: 16, lowDebtBonus: 70 },
+    'Basic Materials': { peMax: 22, peOver: 45, pbMax: 3.2, roeMin: 10, debtMax: 220, marginHealthy: 12, marginStrong: 22, lowDebtBonus: 70 },
+    'Financial Services': { peMax: 16, peOver: 30, pbMax: 1.8, roeMin: 9, debtMax: 600, marginHealthy: 15, marginStrong: 25, lowDebtBonus: 150 }, // Banks leverage high deposits
+    'Energy': { peMax: 15, peOver: 35, pbMax: 2.5, roeMin: 12, debtMax: 150, marginHealthy: 12, marginStrong: 25, lowDebtBonus: 60 },
+    'Utilities': { peMax: 22, peOver: 40, pbMax: 2.5, roeMin: 9, debtMax: 320, marginHealthy: 8, marginStrong: 15, lowDebtBonus: 120 }, // Capital intensive
+    'Real Estate': { peMax: 35, peOver: 75, pbMax: 2.8, roeMin: 6, debtMax: 450, marginHealthy: 15, marginStrong: 30, lowDebtBonus: 150 }, // High debt is normal for REITs
+    'Healthcare': { peMax: 30, peOver: 60, pbMax: 6.0, roeMin: 12, debtMax: 170, marginHealthy: 12, marginStrong: 22, lowDebtBonus: 80 }
+};
+
+const MAX_SCORE = 6;
+
+const clampScore = (value: number) => Math.max(0, Math.min(MAX_SCORE, Number(value.toFixed(2))));
+
+const asPercent = (value?: number | null) => {
+    if (value === undefined || value === null) {
+        return null;
+    }
+    return value * 100;
 };
 
 export async function analyzeStockValue(symbol: string): Promise<ValueScore | null> {
@@ -68,74 +89,120 @@ export async function analyzeStockValue(symbol: string): Promise<ValueScore | nu
         }
 
         const price = priceData.regularMarketPrice || 0;
-        const pb = keyStats.priceToBook || 0;
+        const pb = keyStats.priceToBook ?? null;
         const sector = summaryProfile?.sector || 'Unknown';
 
         // Get config for sector or default
         const cfg = SECTOR_CONFIGS[sector] || DEFAULT_CONFIG;
 
-        // Use trailing PE from summaryDetail, fallback to forward PE or defaults
-        const pe = summaryDetail?.trailingPE || summaryDetail?.forwardPE || 999;
+        const trailingPE = summaryDetail?.trailingPE ?? null;
+        const forwardPE = summaryDetail?.forwardPE ?? null;
+        const pe = trailingPE ?? forwardPE ?? null;
 
         // Yahoo often returns 0.15 for 15%
-        const roe = (financialData.returnOnEquity || 0) * 100;
-        const profitMargin = (financialData.profitMargins || 0) * 100;
-        const debtToEquity = (financialData.debtToEquity || 999);
+        const roe = asPercent(financialData.returnOnEquity);
+        const profitMargin = asPercent(financialData.profitMargins);
+        const debtToEquity = financialData.debtToEquity ?? null;
+        const growthRate = asPercent(financialData.earningsGrowth) ?? asPercent(financialData.revenueGrowth) ?? null;
 
         let score = 0;
         const reasons: string[] = [];
 
+        const addScore = (points: number, note?: string) => {
+            if (!points) {
+                return;
+            }
+            score += points;
+            if (note) {
+                reasons.push(note);
+            }
+        };
+
         // 1. Valuation (P/B)
-        // Stricter check for really cheap P/B (half of sector max)
-        if (pb > 0 && pb < cfg.pbMax * 0.5) {
-            score += 2;
-            reasons.push(`P/B Very Low (<${(cfg.pbMax * 0.5).toFixed(1)})`);
-        } else if (pb > 0 && pb < cfg.pbMax) {
-            score += 1;
+        if (pb && pb > 0) {
+            if (pb <= cfg.pbMax * 0.5) {
+                addScore(1, `P/B very low (${pb.toFixed(2)})`);
+            } else if (pb <= cfg.pbMax) {
+                addScore(0.5, `P/B attractive (<${cfg.pbMax})`);
+            } else if (pb >= cfg.pbMax * 1.5) {
+                addScore(-0.5, `P/B rich (>~${(cfg.pbMax * 1.5).toFixed(1)})`);
+            }
+        } else {
+            reasons.push('P/B unavailable');
         }
 
         // 2. Valuation (P/E)
-        if (pe > 0 && pe < cfg.peMax) {
-            score += 1;
-            reasons.push(`P/E Cheap (<${cfg.peMax})`);
-        } else if (pe > cfg.peOver) {
-            score -= 1;
-            reasons.push(`Overvalued (PE >${cfg.peOver})`);
+        if (!trailingPE && forwardPE) {
+            reasons.push('Using forward P/E (no trailing EPS)');
+        }
+        if (pe && pe > 0) {
+            if (pe <= cfg.peMax * 0.6) {
+                addScore(1, `P/E cheap (${pe.toFixed(1)})`);
+            } else if (pe <= cfg.peMax) {
+                addScore(0.5, `P/E fair (<${cfg.peMax})`);
+            } else if (pe >= cfg.peOver) {
+                addScore(-0.5, `P/E stretched (>${cfg.peOver})`);
+            }
+        } else {
+            reasons.push('P/E unavailable');
         }
 
         // 3. Quality (ROE)
-        if (roe > cfg.roeMin) {
-            score += 2;
-            reasons.push(`High ROE (>${cfg.roeMin}%)`);
-        } else if (roe > 0 && roe < 2) {
-            score -= 1;
-            reasons.push("Low ROE (<2%)");
+        if (roe !== null) {
+            if (roe >= cfg.roeMin * 1.25) {
+                addScore(1, `ROE excellent (${roe.toFixed(1)}%)`);
+            } else if (roe >= cfg.roeMin) {
+                addScore(0.5, `ROE solid (>${cfg.roeMin}%)`);
+            } else if (roe > 0 && roe < 2) {
+                addScore(-0.5, 'ROE very low (<2%)');
+            }
+        } else {
+            reasons.push('ROE unavailable');
         }
 
         // 4. Quality (Margin)
-        // Margin thresholds are generally sector agnostic (higher is better), but could be refined
-        if (profitMargin > 20) {
-            score += 1;
-            reasons.push("High Margin (>20%)");
-        } else if (profitMargin < 0) {
-            score -= 1;
+        const marginHealthy = cfg.marginHealthy ?? DEFAULT_CONFIG.marginHealthy ?? 10;
+        const marginStrong = cfg.marginStrong ?? DEFAULT_CONFIG.marginStrong ?? Math.max(marginHealthy + 10, 20);
+        if (profitMargin !== null) {
+            if (profitMargin >= marginStrong) {
+                addScore(1, `High margin (>${marginStrong}%)`);
+            } else if (profitMargin >= marginHealthy) {
+                addScore(0.5, `Healthy margin (>${marginHealthy}%)`);
+            } else if (profitMargin < 0) {
+                addScore(-0.5, 'Negative margin');
+            }
+        } else {
+            reasons.push('Profit margin unavailable');
         }
 
         // 5. Risk (Debt)
-        if (debtToEquity > cfg.debtMax) {
-            score -= 1;
-            reasons.push(`High Debt (>${cfg.debtMax}%)`);
-        } else if (debtToEquity < 50 && sector !== 'Financial Services') {
-            // Low debt bonus (except Financials where it's complex)
-            score += 1;
-            reasons.push("Low Debt");
+        const lowDebtBonus = cfg.lowDebtBonus ?? DEFAULT_CONFIG.lowDebtBonus ?? 50;
+        if (debtToEquity !== null) {
+            if (debtToEquity <= lowDebtBonus && sector !== 'Financial Services') {
+                addScore(1, 'Low leverage');
+            } else if (debtToEquity <= cfg.debtMax) {
+                addScore(0.5, 'Debt within sector norm');
+            } else {
+                addScore(-0.5, `High debt (>${cfg.debtMax}%)`);
+            }
+        } else {
+            reasons.push('Debt-to-equity unavailable');
         }
 
-        // 6. Sector Bonus (Context)
-        // Just acknowledging we used sector specific logic
-        if (sector !== 'Unknown' && reasons.length > 0) {
-            // Only add sector tag if analyzed, not as a reason point
+        // 6. Growth (Trend)
+        if (growthRate !== null) {
+            if (growthRate >= 15) {
+                addScore(1, `Growth strong (${growthRate.toFixed(1)}%)`);
+            } else if (growthRate >= 5) {
+                addScore(0.5, `Growth steady (${growthRate.toFixed(1)}%)`);
+            } else if (growthRate < 0) {
+                addScore(-0.5, 'Growth contracting');
+            }
+        } else {
+            reasons.push('Growth data unavailable');
         }
+
+        score = clampScore(score);
 
         return {
             symbol,
@@ -146,7 +213,8 @@ export async function analyzeStockValue(symbol: string): Promise<ValueScore | nu
                 pe,
                 roe,
                 profitMargin,
-                debtToEquity
+                debtToEquity,
+                growth: growthRate
             },
             sector,
             industry: summaryProfile?.industry || undefined,

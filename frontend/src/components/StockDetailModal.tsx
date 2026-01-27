@@ -3,6 +3,8 @@ import { Activity, BarChart2 } from 'lucide-react';
 import type { Stock, OptionSignal, StockSnapshot } from '../types';
 import { MoneyFlowGauge } from './MoneyFlowGauge';
 
+type MetricStatus = 'good' | 'bad' | 'neutral';
+
 interface StockDetailModalProps {
     selectedStock: Stock;
     onClose: () => void;
@@ -14,15 +16,20 @@ interface StockDetailModalProps {
     historyData: StockSnapshot[];
 }
 
-function MetricCard({ label, value, sub, good }: { label: string, value: string, sub: string, good: boolean }) {
+function MetricCard({ label, value, sub, status = 'neutral' }: { label: string, value: string, sub: string, status?: MetricStatus }) {
+    const color = status === 'good' ? 'text-green-400' : status === 'bad' ? 'text-red-400' : 'text-white';
     return (
         <div className="bg-neutral-800 p-3 rounded-lg border border-neutral-700">
             <div className="text-gray-500 text-xs mb-1">{label}</div>
-            <div className={`text-lg font-bold ${good ? 'text-green-400' : 'text-white'}`}>{value}</div>
+            <div className={`text-lg font-bold ${color}`}>{value}</div>
             <div className="text-[10px] text-gray-600 mt-1">{sub}</div>
         </div>
-    )
+    );
 }
+
+const isFiniteNumber = (value?: number | null): value is number => typeof value === 'number' && Number.isFinite(value);
+const formatNumber = (value?: number | null, decimals = 2, suffix = '') => isFiniteNumber(value) ? `${value.toFixed(decimals)}${suffix}` : 'N/A';
+const formatPercent = (value?: number | null, decimals = 1) => formatNumber(value, decimals, '%');
 
 
 
@@ -36,6 +43,56 @@ export function StockDetailModal({
     historyLoading,
     historyData
 }: StockDetailModalProps) {
+    const metrics = selectedStock.valueMetrics;
+    const thresholds = selectedStock.thresholds;
+
+    const peMax = thresholds?.peMax ?? 20;
+    const peOver = thresholds?.peOver ?? Math.max(peMax * 1.8, 40);
+    const pbMax = thresholds?.pbMax ?? 3;
+    const roeMin = thresholds?.roeMin ?? 12;
+    const debtMax = thresholds?.debtMax ?? 200;
+    const marginHealthy = thresholds?.marginHealthy ?? 10;
+    const marginStrong = thresholds?.marginStrong ?? Math.max(marginHealthy + 10, 20);
+    const lowDebtBonus = thresholds?.lowDebtBonus ?? 50;
+
+    const peStatus: MetricStatus = isFiniteNumber(metrics?.pe)
+        ? (metrics!.pe <= 0 || metrics!.pe >= peOver) ? 'bad'
+            : metrics!.pe < peMax ? 'good'
+                : 'neutral'
+        : 'neutral';
+
+    const pbStatus: MetricStatus = isFiniteNumber(metrics?.pb)
+        ? metrics!.pb <= pbMax ? 'good'
+            : metrics!.pb >= pbMax * 1.5 ? 'bad'
+                : 'neutral'
+        : 'neutral';
+
+    const roeStatus: MetricStatus = isFiniteNumber(metrics?.roe)
+        ? metrics!.roe >= roeMin ? 'good'
+            : metrics!.roe < 2 ? 'bad'
+                : 'neutral'
+        : 'neutral';
+
+    const debtStatus: MetricStatus = isFiniteNumber(metrics?.debtToEquity)
+        ? metrics!.debtToEquity <= lowDebtBonus && selectedStock.sector !== 'Financial Services' ? 'good'
+            : metrics!.debtToEquity > debtMax ? 'bad'
+                : 'neutral'
+        : 'neutral';
+
+    const marginStatus: MetricStatus = isFiniteNumber(metrics?.profitMargin)
+        ? metrics!.profitMargin >= marginStrong ? 'good'
+            : metrics!.profitMargin < 0 ? 'bad'
+                : metrics!.profitMargin >= marginHealthy ? 'neutral'
+                    : 'neutral'
+        : 'neutral';
+
+    const growthStatus: MetricStatus = isFiniteNumber(metrics?.growth)
+        ? metrics!.growth >= 15 ? 'good'
+            : metrics!.growth < 0 ? 'bad'
+                : metrics!.growth >= 5 ? 'neutral'
+                    : 'neutral'
+        : 'neutral';
+
     return (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={onClose}>
             <div className="bg-neutral-900 border border-neutral-700 w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-2xl shadow-2xl" onClick={e => e.stopPropagation()}>
@@ -93,27 +150,39 @@ export function StockDetailModal({
                             <div className="grid grid-cols-2 gap-4 mb-6">
                                 <MetricCard
                                     label="P/E Ratio"
-                                    value={selectedStock.valueMetrics?.pe?.toFixed(2) ?? 'N/A'}
-                                    sub={`Target < ${selectedStock.thresholds?.peMax ?? 20}`}
-                                    good={selectedStock.valueMetrics?.pe ? (selectedStock.valueMetrics.pe > 0 && selectedStock.valueMetrics.pe < (selectedStock.thresholds?.peMax ?? 20)) : false}
+                                    value={formatNumber(metrics?.pe)}
+                                    sub={`Target < ${peMax}${!isFiniteNumber(metrics?.pe) ? '' : metrics!.pe > peMax && metrics!.pe < peOver ? ' (fair)' : ''}`}
+                                    status={peStatus}
                                 />
                                 <MetricCard
                                     label="P/B Ratio"
-                                    value={selectedStock.valueMetrics?.pb?.toFixed(2) ?? 'N/A'}
-                                    sub={`Target < ${selectedStock.thresholds?.pbMax ?? 3}`}
-                                    good={selectedStock.valueMetrics?.pb ? (selectedStock.valueMetrics.pb > 0 && selectedStock.valueMetrics.pb < (selectedStock.thresholds?.pbMax ?? 3)) : false}
+                                    value={formatNumber(metrics?.pb)}
+                                    sub={`Target < ${pbMax}`}
+                                    status={pbStatus}
                                 />
                                 <MetricCard
                                     label="ROE"
-                                    value={selectedStock.valueMetrics?.roe ? selectedStock.valueMetrics.roe.toFixed(1) + '%' : 'N/A'}
-                                    sub={`Target > ${selectedStock.thresholds?.roeMin ?? 15}%`}
-                                    good={selectedStock.valueMetrics?.roe ? selectedStock.valueMetrics.roe > (selectedStock.thresholds?.roeMin ?? 15) : false}
+                                    value={formatPercent(metrics?.roe)}
+                                    sub={`Target > ${roeMin}%`}
+                                    status={roeStatus}
                                 />
                                 <MetricCard
                                     label="Debt/Equity"
-                                    value={selectedStock.valueMetrics?.debtToEquity ? selectedStock.valueMetrics.debtToEquity.toFixed(1) + '%' : 'N/A'}
-                                    sub={`Target < ${selectedStock.thresholds?.debtMax ?? 200}%`}
-                                    good={selectedStock.valueMetrics?.debtToEquity ? selectedStock.valueMetrics.debtToEquity < (selectedStock.thresholds?.debtMax ?? 200) : false}
+                                    value={formatPercent(metrics?.debtToEquity)}
+                                    sub={`Target < ${debtMax}%`}
+                                    status={debtStatus}
+                                />
+                                <MetricCard
+                                    label="Profit Margin"
+                                    value={formatPercent(metrics?.profitMargin)}
+                                    sub={`Healthy > ${marginHealthy}%`}
+                                    status={marginStatus}
+                                />
+                                <MetricCard
+                                    label="Growth"
+                                    value={formatPercent(metrics?.growth)}
+                                    sub="Earnings/Revenue trend"
+                                    status={growthStatus}
                                 />
                             </div>
 

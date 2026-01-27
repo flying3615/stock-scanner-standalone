@@ -1,9 +1,21 @@
 export interface ValueMetrics {
-    pb: number;
-    pe: number;
-    roe: number;
-    profitMargin: number;
-    debtToEquity: number;
+    pb: number | null;
+    pe: number | null;
+    roe: number | null;
+    profitMargin: number | null;
+    debtToEquity: number | null;
+    growth?: number | null;
+}
+
+export interface SectorThresholds {
+    peMax: number;
+    peOver: number;
+    pbMax: number;
+    roeMin: number;
+    debtMax: number;
+    marginHealthy?: number;
+    marginStrong?: number;
+    lowDebtBonus?: number;
 }
 
 export interface Stock {
@@ -17,13 +29,7 @@ export interface Stock {
     moneyFlowStrength?: number | null;
     sector?: string;
     industry?: string;
-    thresholds?: {
-        peMax: number;
-        peOver: number;
-        pbMax: number;
-        roeMin: number;
-        debtMax: number;
-    };
+    thresholds?: SectorThresholds;
     reasons?: string[];
 }
 

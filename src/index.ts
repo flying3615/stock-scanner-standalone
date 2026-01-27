@@ -8,6 +8,18 @@ import { setTimeout } from 'timers/promises';
 
 dotenv.config();
 
+const formatMetric = (value?: number | null, decimals = 2, fallback = 'N/A') => {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value.toFixed(decimals);
+  }
+  return fallback;
+};
+
+const formatPercent = (value?: number | null, decimals = 1) => {
+  const formatted = formatMetric(value, decimals);
+  return formatted === 'N/A' ? formatted : `${formatted}%`;
+};
+
 async function runOptionsScan(symbol: string, valueAnalysis?: any) {
   console.log(`\n🔍 Scanning options for ${symbol}...`);
   try {
@@ -70,7 +82,9 @@ async function main() {
     console.log('----------------------------------------------------------------');
 
     for (const res of results) {
-      console.log(`${res.symbol.padEnd(8)} ${res.score.toString().padEnd(6)} $${res.price.toFixed(2).padEnd(9)} ${res.metrics.pb.toFixed(2).padEnd(8)} ${res.metrics.roe.toFixed(1)}%   ${res.reasons.join(', ')}`);
+      const pbDisplay = formatMetric(res.metrics.pb).padEnd(8);
+      const roeDisplay = formatPercent(res.metrics.roe).padEnd(8);
+      console.log(`${res.symbol.padEnd(8)} ${res.score.toString().padEnd(6)} $${res.price.toFixed(2).padEnd(9)} ${pbDisplay} ${roeDisplay}   ${res.reasons.join(', ')}`);
     }
 
     // Automatically scan options for top 3 high-value stocks
@@ -92,7 +106,7 @@ async function main() {
     if (value) {
       console.log('\n📊 Value Analysis:', symbol);
       console.log(`   Score: ${value.score}/6`);
-      console.log(`   P/E: ${value.metrics.pe.toFixed(2)}, P/B: ${value.metrics.pb.toFixed(2)}, ROE: ${value.metrics.roe.toFixed(2)}%`);
+      console.log(`   P/E: ${formatMetric(value.metrics.pe)}, P/B: ${formatMetric(value.metrics.pb)}, ROE: ${formatPercent(value.metrics.roe)}`);
       console.log(`   Reasons: ${value.reasons.join(', ')}`);
 
       await runOptionsScan(symbol, value);

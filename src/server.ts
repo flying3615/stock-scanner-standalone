@@ -58,7 +58,6 @@ app.get('/api/movers', async (req, res) => {
                 valueScore: val ? val.score : null,
                 valueMetrics: val ? val.metrics : null,
                 moneyFlowStrength: mfi,
-                moneyFlowStrength: mfi,
                 sector: val ? val.sector : undefined,
                 industry: val ? val.industry : undefined,
                 reasons: val ? val.reasons : []
