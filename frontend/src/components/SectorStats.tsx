@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import type { Stock } from '../types';
+import { getSectorColorClass } from '../utils/sectorColors';
 
 interface SectorStatsProps {
     stocks: Stock[];
@@ -40,9 +41,9 @@ export function SectorStats({ stocks }: SectorStatsProps) {
             <div className="mb-4">
                 <div className="flex flex-wrap gap-2">
                     {stats.sectors.map(([sector, count]) => (
-                        <div key={sector} className="flex items-center bg-neutral-800 border border-neutral-700 rounded-md px-2 py-1">
-                            <span className="text-xs text-gray-300 mr-2">{sector}</span>
-                            <span className="text-xs font-mono font-bold text-blue-400 bg-blue-400/10 px-1.5 rounded">
+                        <div key={sector} className={`flex items-center border rounded-md px-2 py-1 ${getSectorColorClass(sector)}`}>
+                            <span className="text-xs font-medium mr-2">{sector}</span>
+                            <span className="text-xs font-mono font-bold bg-white/10 px-1.5 rounded">
                                 {count}
                             </span>
                         </div>

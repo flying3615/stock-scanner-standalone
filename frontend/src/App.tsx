@@ -6,6 +6,7 @@ import { StockDetailModal } from './components/StockDetailModal';
 import { MoneyFlowGauge } from './components/MoneyFlowGauge';
 import { SectorStats } from './components/SectorStats';
 import { SectorTrendRadar } from './components/SectorTrendRadar';
+import { getSectorColorClass } from './utils/sectorColors';
 
 // API Base URL
 const API_URL = 'http://localhost:3000/api';
@@ -208,7 +209,7 @@ function App() {
                         <div className="text-xs">{stock.changePercent > 0 ? '+' : ''}{stock.changePercent.toFixed(2)}%</div>
                       </div>
                       {stock.sector && (
-                        <span className="text-[9px] px-1.5 py-0.5 rounded bg-neutral-700 text-gray-400 border border-neutral-600 truncate max-w-[120px]" title={stock.sector}>
+                        <span className={`text-[9px] px-1.5 py-0.5 rounded border truncate max-w-[120px] ${getSectorColorClass(stock.sector)}`} title={stock.sector}>
                           {stock.sector}
                         </span>
                       )}
