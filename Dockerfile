@@ -2,8 +2,11 @@ FROM node:22-slim
 
 WORKDIR /app
 
-# Install system dependencies (openssl for Prisma)
-RUN apt-get update -y && apt-get install -y openssl
+# Install system dependencies (openssl for Prisma, tzdata for timezone support)
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update -y \
+    && apt-get install -y --no-install-recommends openssl tzdata \
+    && rm -rf /var/lib/apt/lists/*
 
 # Copy root package files
 COPY package*.json ./
@@ -33,6 +36,7 @@ RUN mkdir -p /app/data
 ENV PORT=3000
 ENV DATABASE_URL="file:/app/data/dev.db"
 ENV NODE_ENV=production
+ENV TZ=America/New_York
 
 # Expose port
 EXPOSE 3000
