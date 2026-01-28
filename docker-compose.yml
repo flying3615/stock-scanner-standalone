@@ -6,7 +6,7 @@ services:
     container_name: stock-scanner
     restart: unless-stopped
     ports:
-      - "${HOST_PORT:-3100}:3000"
+      - "3000:3000"
     volumes:
       - ./data:/app/data
     environment:
