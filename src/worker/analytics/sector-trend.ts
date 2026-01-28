@@ -35,10 +35,13 @@ export async function captureDailySectorStats() {
         });
 
         // 4. Calculate Stats & Prepare DB Records
-        const dayStart = new Date();
-        dayStart.setHours(0, 0, 0, 0);
-        const nextDay = new Date(dayStart);
-        nextDay.setDate(nextDay.getDate() + 1);
+        const now = new Date();
+        const dayStart = new Date(Date.UTC(
+            now.getUTCFullYear(),
+            now.getUTCMonth(),
+            now.getUTCDate()
+        ));
+        const nextDay = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
 
         const statsToSave = Object.entries(sectorGroups).map(([sector, stocks]) => {
             const count = stocks.length;
