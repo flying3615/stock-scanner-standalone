@@ -1,11 +1,12 @@
 services:
   stock-scanner:
+    platform: ${DOCKER_PLATFORM:-linux/amd64}
     build: .
     image: ghcr.io/flying3615/stock-scanner-standalone:latest
     container_name: stock-scanner
     restart: unless-stopped
     ports:
-      - "3000:3000"
+      - "${HOST_PORT:-3100}:3000"
     volumes:
       - ./data:/app/data
     environment:
