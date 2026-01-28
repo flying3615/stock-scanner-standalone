@@ -35,9 +35,10 @@ export async function captureDailySectorStats() {
         });
 
         // 4. Calculate Stats & Prepare DB Records
-        const today = new Date();
-        // Normalize to midnight to avoid duplicate entries if run multiple times same day
-        today.setHours(0, 0, 0, 0);
+        const dayStart = new Date();
+        dayStart.setHours(0, 0, 0, 0);
+        const nextDay = new Date(dayStart);
+        nextDay.setDate(nextDay.getDate() + 1);
 
         const statsToSave = Object.entries(sectorGroups).map(([sector, stocks]) => {
             const count = stocks.length;
@@ -50,7 +51,7 @@ export async function captureDailySectorStats() {
             );
 
             return {
-                date: today,
+                date: dayStart,
                 sector,
                 stockCount: count,
                 avgChange,
@@ -66,15 +67,26 @@ export async function captureDailySectorStats() {
         // 6. Save to DB
         console.log(`[Analytics] Saving ${statsToSave.length} sector stats...`);
 
-        for (let i = 0; i < statsToSave.length; i++) {
-            const stat = statsToSave[i];
-            await prisma.sectorStat.create({
-                data: {
-                    ...stat,
-                    rank: i + 1
+        await prisma.$transaction(async (tx) => {
+            await tx.sectorStat.deleteMany({
+                where: {
+                    date: {
+                        gte: dayStart,
+                        lt: nextDay
+                    }
                 }
             });
-        }
+
+            for (let i = 0; i < statsToSave.length; i++) {
+                const stat = statsToSave[i];
+                await tx.sectorStat.create({
+                    data: {
+                        ...stat,
+                        rank: i + 1
+                    }
+                });
+            }
+        });
 
         console.log('[Analytics] Sector stats captured successfully.');
         return statsToSave;

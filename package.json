@@ -11,6 +11,7 @@
     "server": "nodemon --watch 'src/**/*.ts' --exec 'tsx' src/server.ts",
     "client": "cd frontend && npm run dev",
     "dashboard": "concurrently \"npm run server\" \"npm run client\"",
+    "capture:sector": "tsx -r dotenv/config src/worker/analytics/trigger-sector.ts",
     "dev": "nodemon --watch 'src/**/*.ts' --exec 'tsx' src/index.ts",
     "docker:update": "docker compose pull && docker compose up -d"
   },
