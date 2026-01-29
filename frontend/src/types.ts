@@ -1,3 +1,5 @@
+export type MarketRegion = 'US' | 'CN';
+
 export interface ValueMetrics {
     pb: number | null;
     pe: number | null;
@@ -31,6 +33,7 @@ export interface Stock {
     industry?: string;
     thresholds?: SectorThresholds;
     reasons?: string[];
+    market?: MarketRegion;
 }
 
 export interface OptionSignal {
@@ -57,6 +60,7 @@ export interface StockSnapshot {
     sentimentScore: number;
     moneyFlowStrength: number;
     combos: OptionCombo[];
+    market?: MarketRegion;
 }
 
 export interface SectorStat {

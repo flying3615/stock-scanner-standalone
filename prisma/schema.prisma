@@ -13,6 +13,7 @@ generator client {
 model StockSnapshot {
   id                Int      @id @default(autoincrement())
   symbol            String
+  market            String   @default("US")
   date              DateTime @default(now())
   price             Float
   valueScore        Int

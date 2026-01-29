@@ -46,6 +46,17 @@ const DEFAULT_CONFIG: SectorConfig = {
     lowDebtBonus: 50
 };
 
+const CHINA_ADJUSTMENT: SectorConfig = {
+    peMax: 18,
+    peOver: 45,
+    pbMax: 2.5,
+    roeMin: 9,
+    debtMax: 300,
+    marginHealthy: 8,
+    marginStrong: 18,
+    lowDebtBonus: 80
+};
+
 const SECTOR_CONFIGS: Record<string, SectorConfig> = {
     'Technology': { peMax: 40, peOver: 85, pbMax: 9.0, roeMin: 16, debtMax: 140, marginHealthy: 12, marginStrong: 24, lowDebtBonus: 60 },
     'Communication Services': { peMax: 32, peOver: 65, pbMax: 5.5, roeMin: 13, debtMax: 160, marginHealthy: 10, marginStrong: 22, lowDebtBonus: 70 },
@@ -61,6 +72,7 @@ const SECTOR_CONFIGS: Record<string, SectorConfig> = {
 };
 
 const MAX_SCORE = 6;
+const isChinaStock = (symbol: string) => symbol.toUpperCase().endsWith('.SS') || symbol.toUpperCase().endsWith('.SZ');
 
 const clampScore = (value: number) => Math.max(0, Math.min(MAX_SCORE, Number(value.toFixed(2))));
 
@@ -93,7 +105,9 @@ export async function analyzeStockValue(symbol: string): Promise<ValueScore | nu
         const sector = summaryProfile?.sector || 'Unknown';
 
         // Get config for sector or default
-        const cfg = SECTOR_CONFIGS[sector] || DEFAULT_CONFIG;
+        const cfg = isChinaStock(symbol)
+            ? { ...DEFAULT_CONFIG, ...CHINA_ADJUSTMENT }
+            : (SECTOR_CONFIGS[sector] || DEFAULT_CONFIG);
 
         const trailingPE = summaryDetail?.trailingPE ?? null;
         const forwardPE = summaryDetail?.forwardPE ?? null;

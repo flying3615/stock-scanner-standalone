@@ -1,5 +1,6 @@
 import prisma from './client.js';
 import { OptionSignalLite } from '../worker/shared.js';
+import { detectMarketFromSymbol } from '../worker/markets.js';
 
 interface ScanResult {
     moneyFlowStrength: number;
@@ -66,6 +67,7 @@ export async function saveScanResult(symbol: string, result: any, valueAnalysis?
             const snapshot = await tx.stockSnapshot.create({
                 data: {
                     symbol: symbol.toUpperCase(),
+                    market: detectMarketFromSymbol(symbol),
                     price,
                     valueScore: valueAnalysis ? valueAnalysis.score : 0,
                     sentimentScore: sentiment.sentiment,

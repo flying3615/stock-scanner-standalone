@@ -1,18 +1,20 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { Search } from 'lucide-react';
 import axios from 'axios';
-import type { Stock, OptionSignal, StockSnapshot } from './types';
+import type { Stock, OptionSignal, StockSnapshot, MarketRegion } from './types';
 import { StockDetailModal } from './components/StockDetailModal';
 import { MoneyFlowGauge } from './components/MoneyFlowGauge';
 import { SectorStats } from './components/SectorStats';
 import { SectorTrendRadar } from './components/SectorTrendRadar';
 import { getSectorColorClass } from './utils/sectorColors';
+import { formatDisplaySymbol, normalizeSymbolForMarket } from './utils/market';
 
 // API Base URL
 const API_URL = 'http://localhost:3000/api';
 
 function App() {
   const [moversType, setMoversType] = useState<'active' | 'gainers' | 'losers'>('active');
+  const [market, setMarket] = useState<MarketRegion>('US');
   const [dashboardView, setDashboardView] = useState<'scanner' | 'radar'>('scanner');
   const [movers, setMovers] = useState<Stock[]>([]);
   const [loading, setLoading] = useState(false);
@@ -33,11 +35,11 @@ function App() {
     e.preventDefault();
     if (!searchQuery.trim()) return;
 
-    const symbol = searchQuery.toUpperCase();
+    const normalizedSymbol = normalizeSymbolForMarket(searchQuery, market);
     setIsSearching(true);
 
     try {
-      const { data } = await axios.get(`${API_URL}/value/${symbol}`);
+      const { data } = await axios.get(`${API_URL}/value/${normalizedSymbol}`);
 
       // Map API response to Stock object
       // Note: The /value endpoint returns a ValueScore object which we enriched
@@ -52,14 +54,15 @@ function App() {
         sector: data.sector,
         industry: data.industry,
         thresholds: data.thresholds,
-        reasons: data.reasons
+        reasons: data.reasons,
+        market: data.market || market
       };
 
       handleStockClick(stock);
       setSearchQuery(''); // Clear search
     } catch (err) {
       console.error("Search failed", err);
-      alert(`Could not find stock: ${symbol}`);
+      alert(`Could not find stock: ${normalizedSymbol}`);
     } finally {
       setIsSearching(false);
     }
@@ -68,13 +71,13 @@ function App() {
   // Load movers on mount or type change
   useEffect(() => {
     fetchMovers();
-  }, [moversType]);
+  }, [moversType, market]);
 
   const fetchMovers = async () => {
     setLoading(true);
     try {
       const { data } = await axios.get(`${API_URL}/movers`, {
-        params: { type: moversType, limit: 20 }
+        params: { type: moversType, limit: 20, market }
       });
       setMovers(data);
     } catch (err) {
@@ -127,7 +130,7 @@ function App() {
         <form onSubmit={handleSearch} className="relative mx-4">
           <input
             type="text"
-            placeholder="Search Symbol (e.g. NVDA)..."
+            placeholder={market === 'CN' ? 'Search A-share (e.g. 600519)...' : 'Search Symbol (e.g. NVDA)...'}
             className="bg-neutral-800 border border-neutral-700 text-gray-200 text-sm rounded-full pl-10 pr-4 py-2 w-64 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all placeholder:text-gray-600"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
@@ -153,6 +156,21 @@ function App() {
             >
               Market Radar 📡
             </button>
+          </div>
+
+          <div className="flex gap-2">
+            {(['US', 'CN'] as MarketRegion[]).map((target) => (
+              <button
+                key={target}
+                onClick={() => setMarket(target)}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${market === target
+                  ? 'bg-purple-600 text-white shadow-lg shadow-purple-500/20'
+                  : 'bg-neutral-800 text-gray-400 hover:bg-neutral-700'
+                  }`}
+              >
+                {target === 'US' ? 'US Market' : 'China A-Shares'}
+              </button>
+            ))}
           </div>
 
           <div className="flex gap-2">
@@ -195,7 +213,14 @@ function App() {
                 >
                   <div className="flex justify-between items-start mb-2">
                     <div>
-                      <h3 className="text-xl font-bold text-white group-hover:text-blue-400 transition-colors">{stock.symbol}</h3>
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-xl font-bold text-white group-hover:text-blue-400 transition-colors">
+                          {formatDisplaySymbol(stock.symbol, stock.market)}
+                        </h3>
+                        <span className="text-[10px] uppercase text-gray-500 border border-neutral-700 rounded px-1">
+                          {stock.market || 'US'}
+                        </span>
+                      </div>
                       <p className="text-xs text-gray-500 truncate max-w-[150px]">{stock.name}</p>
                       {stock.industry && (
                         <p className="text-[10px] text-gray-600 truncate max-w-[150px] mt-0.5" title={stock.industry}>

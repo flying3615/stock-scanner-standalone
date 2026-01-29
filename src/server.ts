@@ -2,12 +2,14 @@
 import express from 'express';
 import cors from 'cors';
 import { fetchMarketMovers, MoverType } from './worker/scanner/market-movers.js';
+import { fetchChinaMovers } from './worker/scanner/china-movers.js';
 import { calculateMoneyFlowStrength } from './worker/util.js';
 import { getSectorTrends } from './worker/analytics/sector-trend.js';
 import { analyzeStockValue } from './worker/scanner/value-analyzer.js';
 import { scanSymbolOptions } from './worker/options/options.js';
 import { saveScanResult, getHistory } from './db/persistence.js';
 import { initScheduler } from './scheduler.js';
+import { detectMarketFromSymbol, isChinaSymbol } from './worker/markets.js';
 import dotenv from 'dotenv';
 import { setTimeout } from 'timers/promises';
 import path from 'path';
@@ -30,11 +32,24 @@ initScheduler();
 app.use(cors());
 app.use(express.json());
 
+type MarketRegion = 'US' | 'CN';
+const parseMarketQuery = (value: unknown): MarketRegion => {
+    if (!value) return 'US';
+    if (Array.isArray(value)) {
+        return parseMarketQuery(value[0]);
+    }
+    if (typeof value === 'string') {
+        return value.toUpperCase() === 'CN' ? 'CN' : 'US';
+    }
+    return 'US';
+};
+
 // Market Movers Endpoint
 app.get('/api/movers', async (req, res) => {
     const type = (req.query.type as MoverType) || 'active';
     const limit = Number(req.query.limit) || 20; // Fetch slight more for grid
-    const cacheKey = `movers_${type}_${limit}`;
+    const market = parseMarketQuery(req.query.market);
+    const cacheKey = `movers_${market}_${type}_${limit}`;
 
     const cached = cache.get(cacheKey);
     if (cached) {
@@ -43,8 +58,10 @@ app.get('/api/movers', async (req, res) => {
     }
 
     try {
-        console.log(`[API] Fetching ${type} movers...`);
-        const movers = await fetchMarketMovers(type, limit);
+        console.log(`[API] Fetching ${market === 'CN' ? 'China' : type} movers...`);
+        const movers = market === 'CN'
+            ? await fetchChinaMovers(limit)
+            : await fetchMarketMovers(type, limit);
 
         // Lightweight enrichment
         const enriched = await Promise.all(movers.map(async (m) => {
@@ -55,6 +72,7 @@ app.get('/api/movers', async (req, res) => {
 
             return {
                 ...m,
+                market,
                 valueScore: val ? val.score : null,
                 valueMetrics: val ? val.metrics : null,
                 moneyFlowStrength: mfi,
@@ -75,6 +93,7 @@ app.get('/api/movers', async (req, res) => {
 // Value Analysis Endpoint
 app.get('/api/value/:symbol', async (req, res) => {
     const symbol = req.params.symbol.toUpperCase();
+    const market = detectMarketFromSymbol(symbol);
     const cacheKey = `value_${symbol}`;
 
     const cached = cache.get(cacheKey);
@@ -86,8 +105,12 @@ app.get('/api/value/:symbol', async (req, res) => {
         if (!result) {
             return res.status(404).json({ error: 'Data not found' });
         }
-        cache.set(cacheKey, result, 1800); // Cache value analysis for 30 mins
-        res.json(result);
+        const payload = {
+            ...result,
+            market
+        };
+        cache.set(cacheKey, payload, 1800); // Cache value analysis for 30 mins
+        res.json(payload);
     } catch (error) {
         console.error(error);
         res.status(500).json({ error: 'Analysis failed' });
@@ -97,7 +120,8 @@ app.get('/api/value/:symbol', async (req, res) => {
 // Options Scan Endpoint
 app.get('/api/options/:symbol', async (req, res) => {
     const symbol = req.params.symbol.toUpperCase();
-    const cacheKey = `options_${symbol}`;
+    const market = detectMarketFromSymbol(symbol);
+    const cacheKey = `options_${market}_${symbol}`;
 
     // Check cache first (short TTL for options as they move fast)
     const cached = cache.get(cacheKey);
@@ -107,6 +131,19 @@ app.get('/api/options/:symbol', async (req, res) => {
     }
 
     try {
+        if (isChinaSymbol(symbol)) {
+            const fallback = {
+                moneyFlowStrength: await calculateMoneyFlowStrength(symbol, 7),
+                signals: [],
+                sentiment: null,
+                marketState: 'CN',
+                rmp: null,
+                note: 'Options scanning is not yet supported for China A-shares.'
+            };
+            cache.set(cacheKey, fallback, 60);
+            return res.json(fallback);
+        }
+
         console.log(`[API] Scanning options for ${symbol}...`);
         const result = await scanSymbolOptions(symbol, true, {
             regularFreshWindowMins: 60,
@@ -131,7 +168,8 @@ app.get('/api/options/:symbol', async (req, res) => {
             signals: result.signals,
             sentiment: result.sentiment,
             marketState: result.marketState,
-            rmp: result.rmp
+            rmp: result.rmp,
+            market
         };
 
         cache.set(cacheKey, responseData, 60); // Cache for 1 min only (real-time sensitive)

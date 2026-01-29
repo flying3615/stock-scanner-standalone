@@ -3,6 +3,7 @@ import { Activity, BarChart2 } from 'lucide-react';
 import type { Stock, OptionSignal, StockSnapshot } from '../types';
 import { MoneyFlowGauge } from './MoneyFlowGauge';
 import { getSectorColorClass } from '../utils/sectorColors';
+import { formatDisplaySymbol } from '../utils/market';
 
 type MetricStatus = 'good' | 'bad' | 'neutral';
 
@@ -99,10 +100,16 @@ export function StockDetailModal({
             <div className="bg-neutral-900 border border-neutral-700 w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-2xl shadow-2xl" onClick={e => e.stopPropagation()}>
                 <div className="p-6 border-b border-neutral-800 flex justify-between items-start sticky top-0 bg-neutral-900 z-10">
                     <div>
-                        <h2 className="text-3xl font-bold text-white flex items-center gap-3">
-                            {selectedStock.symbol}
+                        <div className="flex items-center gap-3">
+                            <h2 className="text-3xl font-bold text-white flex items-center gap-2">
+                                {formatDisplaySymbol(selectedStock.symbol, selectedStock.market)}
+                                <span className="text-xs uppercase text-gray-500 border border-neutral-700 rounded px-2 py-0.5">
+                                    {selectedStock.market || 'US'}
+                                </span>
+                            </h2>
                             <span className="text-lg font-normal text-gray-400">{selectedStock.name}</span>
-                        </h2>
+                        </div>
+                        <p className="text-xs text-gray-600 mt-1">Full Symbol: {selectedStock.symbol}</p>
                         <div className="flex items-center gap-4 mt-2 text-sm text-gray-400">
                             <span className="font-mono text-white text-lg">${selectedStock.price}</span>
                             <span className={selectedStock.changePercent >= 0 ? 'text-green-400' : 'text-red-400'}>

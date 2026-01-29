@@ -1,10 +1,12 @@
 
 import { scanSymbolOptions } from './worker/options/options.js';
 import { fetchMarketMovers, MoverType } from './worker/scanner/market-movers.js';
+import { fetchChinaMovers } from './worker/scanner/china-movers.js';
 import { analyzeStockValue } from './worker/scanner/value-analyzer.js';
 import { saveScanResult } from './db/persistence.js';
 import dotenv from 'dotenv';
 import { setTimeout } from 'timers/promises';
+import { detectMarketFromSymbol } from './worker/markets.js';
 
 dotenv.config();
 
@@ -57,8 +59,10 @@ async function main() {
 
   if (mode === '--market') {
     const type = (args[1] || 'active') as MoverType;
-    console.log(`🚀 Fetching ${type} market movers...`);
-    const movers = await fetchMarketMovers(type);
+    const regionArg = (args[2] || 'US').toUpperCase();
+    const region = regionArg === 'CN' ? 'CN' : 'US';
+    console.log(`🚀 Fetching ${region === 'CN' ? 'China A-share' : type} market movers...`);
+    const movers = region === 'CN' ? await fetchChinaMovers(50) : await fetchMarketMovers(type);
 
     console.log(`\nFound ${movers.length} movers. Analyzing value...`);
     const results = [];
@@ -92,6 +96,10 @@ async function main() {
     if (topPicks.length > 0) {
       console.log('\n👀 Checking Options Flow for Top Picks...');
       for (const pick of topPicks) {
+        if (detectMarketFromSymbol(pick.symbol) === 'CN') {
+          console.log(`   ⚠️ Skipping options scan for ${pick.symbol} (A-share unsupported)`);
+          continue;
+        }
         await runOptionsScan(pick.symbol, pick);
       }
     }
