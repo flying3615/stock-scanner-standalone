@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { Search } from 'lucide-react';
 import axios from 'axios';
-import type { Stock, OptionSignal, StockSnapshot } from './types';
+import type { Stock, OptionSignal, StockSnapshot, MacroSnapshot } from './types';
 import { StockDetailModal } from './components/StockDetailModal';
 import { MoneyFlowGauge } from './components/MoneyFlowGauge';
 import { SectorStats } from './components/SectorStats';
@@ -19,6 +19,8 @@ function App() {
   const [selectedStock, setSelectedStock] = useState<Stock | null>(null);
   const [optionsData, setOptionsData] = useState<{ signals: OptionSignal[], moneyFlowStrength: number } | null>(null);
   const [optionsLoading, setOptionsLoading] = useState(false);
+  const [macroData, setMacroData] = useState<MacroSnapshot | null>(null);
+  const [macroLoading, setMacroLoading] = useState(false);
 
   // History State
   const [viewMode, setViewMode] = useState<'analysis' | 'history'>('analysis');
@@ -58,7 +60,7 @@ function App() {
       handleStockClick(stock);
       setSearchQuery(''); // Clear search
     } catch (err) {
-      console.error("Search failed", err);
+      console.error('Search failed', err);
       alert(`Could not find stock: ${symbol}`);
     } finally {
       setIsSearching(false);
@@ -69,6 +71,12 @@ function App() {
   useEffect(() => {
     fetchMovers();
   }, [moversType]);
+
+  useEffect(() => {
+    fetchMacro();
+    const interval = setInterval(fetchMacro, 60 * 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   const fetchMovers = async () => {
     setLoading(true);
@@ -81,6 +89,18 @@ function App() {
       console.error(err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchMacro = async () => {
+    setMacroLoading(true);
+    try {
+      const { data } = await axios.get(`${API_URL}/macro`);
+      setMacroData(data);
+    } catch (err) {
+      console.error('[Macro] Failed to load macro snapshot', err);
+    } finally {
+      setMacroLoading(false);
     }
   };
 
@@ -115,6 +135,35 @@ function App() {
 
   return (
     <div className="min-h-screen w-full bg-neutral-900 text-gray-100 font-sans p-6">
+      {macroData && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4 text-sm">
+          <div id="macro-dxy" className="bg-neutral-800/60 border border-neutral-700/40 rounded-xl p-4 flex items-center justify-between">
+            <div>
+              <p className="text-xs uppercase text-gray-500">US Dollar Index</p>
+              <p className="text-2xl font-semibold">{macroData.dxy.price.toFixed(2)}</p>
+            </div>
+            <div className={`text-sm font-bold ${macroData.dxy.trend === 'UP' ? 'text-red-400' : macroData.dxy.trend === 'DOWN' ? 'text-green-400' : 'text-gray-400'}`}>
+              {macroData.dxy.trend}
+            </div>
+          </div>
+          <div id="macro-vix" className="bg-neutral-800/60 border border-neutral-700/40 rounded-xl p-4 flex items-center justify-between">
+            <div>
+              <p className="text-xs uppercase text-gray-500">VIX Fear Gauge</p>
+              <p className="text-2xl font-semibold">{macroData.vix.price.toFixed(2)}</p>
+            </div>
+            <div className={`text-sm font-bold ${macroData.vix.status === 'RISING' ? 'text-red-400' : macroData.vix.status === 'FALLING' ? 'text-green-400' : 'text-gray-400'}`}>
+              {macroData.vix.status}
+            </div>
+          </div>
+          <div className="bg-neutral-800/60 border border-neutral-700/40 rounded-xl p-4 flex flex-col justify-center">
+            <p className="text-xs uppercase text-gray-500">Macro Regime</p>
+            <p className="text-2xl font-semibold text-white" id="macro-regime">
+              {macroData.overallRegime.replace('_', ' ')}
+            </p>
+            {macroLoading && <span className="text-[10px] text-gray-500">Refreshing...</span>}
+          </div>
+        </div>
+      )}
       <header className="mb-8 flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">
@@ -185,6 +234,45 @@ function App() {
           </div>
         ) : (
           <>
+            {macroData && macroData.indices.length > 0 && (
+              <div className="mb-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+                {macroData.indices.map((idx) => {
+                  const scoreId = idx.symbol === '^IXIC' ? 'macro-ns-score' : idx.symbol === '^GSPC' ? 'macro-sp-score' : undefined;
+                  return (
+                    <div key={idx.symbol} className="bg-neutral-800/40 border border-neutral-700/40 rounded-xl p-4 shadow-inner">
+                      <div className="flex items-center justify-between mb-2">
+                        <div>
+                          <h3 className="text-lg font-semibold text-white">{idx.label}</h3>
+                          <p className="text-xs text-gray-500">{idx.symbol}</p>
+                        </div>
+                        <span className={`text-[10px] font-semibold px-2 py-1 rounded border ${idx.regime.includes('BULLISH') ? 'border-green-500/40 text-green-400' : idx.regime.includes('BEARISH') ? 'border-red-500/40 text-red-400' : 'border-yellow-500/30 text-yellow-300'}`}>
+                          {idx.regime.replace('_', ' ')}
+                        </span>
+                      </div>
+                      <div className="flex items-end justify-between">
+                        <div>
+                          <p className="text-2xl font-bold text-white">{idx.price.toFixed(2)}</p>
+                          <p className={`text-sm ${idx.changePercent >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                            {idx.changePercent >= 0 ? '+' : ''}{idx.changePercent.toFixed(2)}%
+                          </p>
+                        </div>
+                        <div className="text-sm text-gray-400" id={scoreId}>
+                          Score: {idx.score.toFixed(1)}/6
+                        </div>
+                      </div>
+                      <div className="mt-4 flex items-center gap-4">
+                        <div className="flex-1">
+                          <MoneyFlowGauge value={idx.mfi} small />
+                        </div>
+                        <div className="text-xs text-gray-500">
+                          MFI
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
             <SectorStats stocks={movers} />
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
               {movers.map(stock => (
@@ -216,7 +304,6 @@ function App() {
                     </div>
                   </div>
 
-                  {/* Value Badge */}
                   {/* Footer Row: Score | MFI Gauge | Vol */}
                   <div className="mt-4 flex items-end gap-3 h-8">
                     {/* Score */}
@@ -250,7 +337,7 @@ function App() {
         )
       )}
 
-      {/* Detail Modal Component */}
+      {/* Detail Modal */}
       {selectedStock && (
         <StockDetailModal
           selectedStock={selectedStock}

@@ -8,6 +8,7 @@ import { analyzeStockValue } from './worker/scanner/value-analyzer.js';
 import { scanSymbolOptions } from './worker/options/options.js';
 import { saveScanResult, getHistory } from './db/persistence.js';
 import { initScheduler } from './scheduler.js';
+import { getMacroSnapshot } from './worker/macro/macro-monitor.js';
 import dotenv from 'dotenv';
 import { setTimeout } from 'timers/promises';
 import path from 'path';
@@ -162,6 +163,17 @@ app.get('/api/trends/sectors', async (req, res) => {
     } catch (error) {
         console.error(error);
         res.status(500).json({ error: 'Failed to fetch sector trends' });
+    }
+});
+
+// Macro Dashboard Endpoint
+app.get('/api/macro', async (_req, res) => {
+    try {
+        const snapshot = await getMacroSnapshot();
+        res.json(snapshot);
+    } catch (error) {
+        console.error('[API] Failed to fetch macro snapshot', error);
+        res.status(500).json({ error: 'Failed to fetch macro snapshot' });
     }
 });
 

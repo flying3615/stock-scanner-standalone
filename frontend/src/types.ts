@@ -70,3 +70,28 @@ export interface SectorStat {
     leaderChange: number | null;
     rank: number;
 }
+
+export interface MacroIndexSnapshot {
+    symbol: string;
+    label: string;
+    price: number;
+    changePercent: number;
+    mfi: number;
+    score: number;
+    regime: string;
+}
+
+export interface MacroTickerSnapshot {
+    symbol: string;
+    price: number;
+    changePercent: number;
+    trend?: string;
+    status?: string;
+}
+
+export interface MacroSnapshot {
+    indices: MacroIndexSnapshot[];
+    dxy: MacroTickerSnapshot;
+    vix: MacroTickerSnapshot;
+    overallRegime: 'RISK_ON' | 'RISK_OFF' | 'CHOPPY';
+}
