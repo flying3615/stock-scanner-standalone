@@ -74,7 +74,7 @@ function App() {
 
   useEffect(() => {
     fetchMacro();
-    const interval = setInterval(fetchMacro, 60 * 1000);
+    const interval = setInterval(fetchMacro, 5 * 60 * 1000);
     return () => clearInterval(interval);
   }, []);
 

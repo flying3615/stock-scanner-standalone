@@ -2,7 +2,7 @@ import NodeCache from 'node-cache';
 import { fetchDirectChart, fetchDirectQuote } from '../yahoo-direct.js';
 import { calculateMoneyFlowStrength } from '../util.js';
 
-const CACHE_TTL_SECONDS = 60;
+const CACHE_TTL_SECONDS = 300;
 const macroCache = new NodeCache({ stdTTL: CACHE_TTL_SECONDS });
 
 const INDEX_SYMBOLS = [
