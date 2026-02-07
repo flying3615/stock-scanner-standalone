@@ -5,9 +5,16 @@ services:
     image: ghcr.io/flying3615/stock-scanner-standalone:latest
     container_name: stock-scanner
     restart: unless-stopped
-    ports:
-      - "3000:3000"
+    expose:
+      - "3000"
     volumes:
       - ./data:/app/data
     environment:
       - DATABASE_URL=file:/app/data/dev.db
+    networks:
+      - proxy-net
+
+networks:
+  proxy-net:
+    external: true
+    name: proxy-net
