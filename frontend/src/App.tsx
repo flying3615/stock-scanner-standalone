@@ -9,7 +9,8 @@ import { SectorTrendRadar } from './components/SectorTrendRadar';
 import { getSectorColorClass } from './utils/sectorColors';
 
 // API Base URL
-const API_URL = 'http://localhost:3000/api';
+const rawBase = (import.meta.env.VITE_API_BASE ?? '').replace(/\/$/, '');
+const API_URL = rawBase ? `${rawBase}/api` : '/api';
 
 function App() {
   const [moversType, setMoversType] = useState<'active' | 'gainers' | 'losers'>('active');
