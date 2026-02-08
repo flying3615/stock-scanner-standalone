@@ -9,6 +9,7 @@ import { scanSymbolOptions } from './worker/options/options.js';
 import { saveScanResult, getHistory } from './db/persistence.js';
 import { initScheduler } from './scheduler.js';
 import { getMacroSnapshot } from './worker/macro/macro-monitor.js';
+import { setupOpenAPI } from './api/openapi-setup.js';
 import dotenv from 'dotenv';
 import { setTimeout } from 'timers/promises';
 import path from 'path';
@@ -30,6 +31,9 @@ initScheduler();
 
 app.use(cors());
 app.use(express.json());
+
+// Setup OpenAPI documentation
+setupOpenAPI(app);
 
 // Market Movers Endpoint
 app.get('/api/movers', async (req, res) => {

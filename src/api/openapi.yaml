@@ -1,0 +1,845 @@
+openapi: 3.0.3
+info:
+  title: Stock Scanner API
+  description: |
+    Real-time stock market analysis API providing market movers, value analysis, options scanning,
+    historical data, sector trends, and macro indicators.
+
+    **Caching Behavior:**
+    - Market movers: 5 minutes
+    - Value analysis: 30 minutes
+    - Options data: 1 minute (real-time sensitive)
+    - History, sectors, macro: No cache
+  version: 1.0.0
+  contact:
+    name: Stock Scanner API
+servers:
+  - url: http://localhost:3000
+    description: Local development server
+  - url: https://api.example.com
+    description: Production server (placeholder)
+
+tags:
+  - name: Market Data
+    description: Real-time market movers and stock data
+  - name: Analysis
+    description: Value and options analysis endpoints
+  - name: Analytics
+    description: Sector trends and macro indicators
+  - name: History
+    description: Historical scan results
+
+paths:
+  /api/movers:
+    get:
+      tags:
+        - Market Data
+      summary: Get market movers
+      description: |
+        Fetches top gaining, losing, or most active stocks with enriched value metrics and money flow data.
+        Results are cached for 5 minutes to reduce API load.
+      operationId: getMarketMovers
+      parameters:
+        - name: type
+          in: query
+          description: Type of market movers to fetch
+          required: false
+          schema:
+            type: string
+            enum: [gainers, losers, active]
+            default: active
+        - name: limit
+          in: query
+          description: Number of stocks to return
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: Successful response with enriched market movers
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/EnrichedMover'
+              example:
+                - symbol: AAPL
+                  name: Apple Inc.
+                  price: 185.50
+                  change: 5.25
+                  changesPercentage: 2.91
+                  volume: 58234567
+                  valueScore: 75.3
+                  valueMetrics:
+                    peRatio: 29.5
+                    pbRatio: 45.2
+                    debtToEquity: 1.73
+                    roe: 0.456
+                    currentRatio: 0.98
+                  moneyFlowStrength: 68.5
+                  sector: Technology
+                  industry: Consumer Electronics
+                  reasons:
+                    - Strong revenue growth
+                    - High profitability
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/value/{symbol}:
+    get:
+      tags:
+        - Analysis
+      summary: Analyze stock value
+      description: |
+        Performs comprehensive value analysis on a stock symbol including fundamentals,
+        ratios, and scoring. Results are cached for 30 minutes.
+      operationId: getValueAnalysis
+      parameters:
+        - name: symbol
+          in: path
+          description: Stock ticker symbol (uppercase)
+          required: true
+          schema:
+            type: string
+            pattern: '^[A-Z]{1,5}$'
+            example: AAPL
+      responses:
+        '200':
+          description: Value analysis result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValueScore'
+              example:
+                symbol: AAPL
+                score: 75.3
+                sector: Technology
+                industry: Consumer Electronics
+                metrics:
+                  peRatio: 29.5
+                  pbRatio: 45.2
+                  debtToEquity: 1.73
+                  roe: 0.456
+                  currentRatio: 0.98
+                reasons:
+                  - Strong revenue growth
+                  - High profitability
+                  - Excellent return on equity
+        '404':
+          description: Stock data not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Analysis failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/options/{symbol}:
+    get:
+      tags:
+        - Analysis
+      summary: Scan options activity
+      description: |
+        Scans options flow for a symbol, detecting unusual activity, sentiment, and signals.
+        Results are cached for 1 minute due to real-time sensitivity. Automatically saves
+        results to historical database.
+      operationId: scanOptions
+      parameters:
+        - name: symbol
+          in: path
+          description: Stock ticker symbol (uppercase)
+          required: true
+          schema:
+            type: string
+            pattern: '^[A-Z]{1,5}$'
+            example: AAPL
+      responses:
+        '200':
+          description: Options scan result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OptionsScanResult'
+              example:
+                moneyFlowStrength: 68.5
+                signals:
+                  - symbol: AAPL
+                    type: call
+                    strike: 190
+                    expiryISO: '2024-03-15T00:00:00Z'
+                    volume: 5234
+                    openInterest: 12456
+                    last: 8.50
+                    bid: 8.45
+                    ask: 8.55
+                    mid: 8.50
+                    notional: 44489000
+                    pos: 0.85
+                    direction: buy
+                    lastTradeISO: '2024-03-01T15:30:00Z'
+                    ageMin: 5
+                    rmp: 185.50
+                    moneyness: 1.024
+                    daysToExpiry: 14
+                    marketCap: 2850000000000
+                    notionalToMarketCap: 0.0000156
+                    isDeepOTMPut: false
+                    tenorBucket: short
+                    isShortTermSpec: true
+                    isLongTermHedge: false
+                    comboId: ''
+                    comboType: standalone
+                    isComboHedge: false
+                    isLargeOTMCall: false
+                    hedgeScore: 0.12
+                    hedgeTags: []
+                    iv: 0.28
+                    spreadPct: 0.59
+                    traderType: institutional
+                    spotConfirmation: strong
+                    daysToEarnings: null
+                    directionConfidence: 0.89
+                    signalQuality: 0.85
+                sentiment:
+                  bullishNotional: 145000000
+                  bearishNotional: 78000000
+                  putCallRatio: 0.54
+                  sentiment: 0.67
+                marketState: regular
+                rmp: 185.50
+        '500':
+          description: Options scan failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/history/{symbol}:
+    get:
+      tags:
+        - History
+      summary: Get historical scan results
+      description: |
+        Retrieves historical options scan results for a symbol. No caching applied.
+      operationId: getHistory
+      parameters:
+        - name: symbol
+          in: path
+          description: Stock ticker symbol (uppercase)
+          required: true
+          schema:
+            type: string
+            pattern: '^[A-Z]{1,5}$'
+            example: AAPL
+      responses:
+        '200':
+          description: Historical scan records
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/HistoryRecord'
+              example:
+                - timestamp: '2024-03-01T15:30:00Z'
+                  symbol: AAPL
+                  sentiment:
+                    bullishNotional: 145000000
+                    bearishNotional: 78000000
+                    putCallRatio: 0.54
+                    sentiment: 0.67
+                  signalCount: 12
+                  topSignals:
+                    - type: call
+                      strike: 190
+                      notional: 44489000
+                      direction: buy
+        '500':
+          description: Failed to fetch history
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/trends/sectors:
+    get:
+      tags:
+        - Analytics
+      summary: Get sector trends
+      description: |
+        Analyzes sector performance trends over the past 14 days. No caching applied.
+      operationId: getSectorTrends
+      responses:
+        '200':
+          description: Sector trend analysis
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SectorTrend'
+              example:
+                - sector: Technology
+                  avgChange: 2.45
+                  stockCount: 87
+                  momentum: strong
+                  topGainers:
+                    - NVDA
+                    - AAPL
+                    - MSFT
+                - sector: Healthcare
+                  avgChange: -0.52
+                  stockCount: 65
+                  momentum: weak
+                  topGainers:
+                    - JNJ
+                    - PFE
+        '500':
+          description: Failed to fetch sector trends
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/macro:
+    get:
+      tags:
+        - Analytics
+      summary: Get macro snapshot
+      description: |
+        Retrieves current macro market indicators including indices, DXY, VIX, and regime.
+      operationId: getMacroSnapshot
+      responses:
+        '200':
+          description: Macro market snapshot
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MacroSnapshot'
+              example:
+                indices:
+                  - symbol: ^GSPC
+                    name: S&P 500
+                    price: 5234.18
+                    change: 45.23
+                    changePercent: 0.87
+                  - symbol: ^DJI
+                    name: Dow Jones
+                    price: 38456.78
+                    change: 125.67
+                    changePercent: 0.33
+                  - symbol: ^IXIC
+                    name: NASDAQ
+                    price: 16234.56
+                    change: 98.45
+                    changePercent: 0.61
+                dxy:
+                  price: 103.45
+                  change: 0.12
+                  changePercent: 0.12
+                vix:
+                  price: 14.56
+                  change: -0.45
+                  changePercent: -3.00
+                overallRegime: bullish
+        '500':
+          description: Failed to fetch macro snapshot
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  schemas:
+    EnrichedMover:
+      type: object
+      description: Market mover enriched with value metrics and money flow data
+      properties:
+        symbol:
+          type: string
+          description: Stock ticker symbol
+          example: AAPL
+        name:
+          type: string
+          description: Company name
+          example: Apple Inc.
+        price:
+          type: number
+          format: float
+          description: Current stock price
+          example: 185.50
+        change:
+          type: number
+          format: float
+          description: Price change in dollars
+          example: 5.25
+        changesPercentage:
+          type: number
+          format: float
+          description: Price change percentage
+          example: 2.91
+        volume:
+          type: integer
+          description: Trading volume
+          example: 58234567
+        valueScore:
+          type: number
+          format: float
+          nullable: true
+          description: Value score (0-100), null if unavailable
+          example: 75.3
+        valueMetrics:
+          $ref: '#/components/schemas/ValueMetrics'
+          nullable: true
+        moneyFlowStrength:
+          type: number
+          format: float
+          description: Money flow indicator strength (0-100)
+          example: 68.5
+        sector:
+          type: string
+          description: Company sector
+          example: Technology
+        industry:
+          type: string
+          description: Company industry
+          example: Consumer Electronics
+        reasons:
+          type: array
+          items:
+            type: string
+          description: Reasons for value score
+          example:
+            - Strong revenue growth
+            - High profitability
+
+    ValueMetrics:
+      type: object
+      description: Financial metrics used in value analysis
+      properties:
+        peRatio:
+          type: number
+          format: float
+          description: Price-to-earnings ratio
+          example: 29.5
+        pbRatio:
+          type: number
+          format: float
+          description: Price-to-book ratio
+          example: 45.2
+        debtToEquity:
+          type: number
+          format: float
+          description: Debt-to-equity ratio
+          example: 1.73
+        roe:
+          type: number
+          format: float
+          description: Return on equity
+          example: 0.456
+        currentRatio:
+          type: number
+          format: float
+          description: Current ratio
+          example: 0.98
+
+    ValueScore:
+      type: object
+      description: Comprehensive value analysis result
+      properties:
+        symbol:
+          type: string
+          example: AAPL
+        score:
+          type: number
+          format: float
+          description: Overall value score (0-100)
+          example: 75.3
+        sector:
+          type: string
+          example: Technology
+        industry:
+          type: string
+          example: Consumer Electronics
+        metrics:
+          $ref: '#/components/schemas/ValueMetrics'
+        reasons:
+          type: array
+          items:
+            type: string
+          description: Reasons contributing to the score
+          example:
+            - Strong revenue growth
+            - High profitability
+
+    OptionsScanResult:
+      type: object
+      description: Options scanning result with signals and sentiment
+      properties:
+        moneyFlowStrength:
+          type: number
+          format: float
+          description: Money flow indicator (0-100)
+          example: 68.5
+        signals:
+          type: array
+          items:
+            $ref: '#/components/schemas/OptionSignal'
+          description: Detected option signals
+        sentiment:
+          $ref: '#/components/schemas/Sentiment'
+        marketState:
+          type: string
+          enum: [regular, premarket, afterhours, closed]
+          description: Current market state
+          example: regular
+        rmp:
+          type: number
+          format: float
+          description: Regular market price
+          example: 185.50
+
+    OptionSignal:
+      type: object
+      description: Individual option trade signal with hedge detection
+      properties:
+        symbol:
+          type: string
+          example: AAPL
+        type:
+          type: string
+          enum: [call, put]
+          example: call
+        strike:
+          type: number
+          format: float
+          example: 190
+        expiryISO:
+          type: string
+          format: date-time
+          example: '2024-03-15T00:00:00Z'
+        volume:
+          type: integer
+          example: 5234
+        openInterest:
+          type: integer
+          example: 12456
+        last:
+          type: number
+          format: float
+          example: 8.50
+        bid:
+          type: number
+          format: float
+          example: 8.45
+        ask:
+          type: number
+          format: float
+          example: 8.55
+        mid:
+          type: number
+          format: float
+          example: 8.50
+        notional:
+          type: number
+          format: float
+          description: Notional value in dollars
+          example: 44489000
+        pos:
+          type: number
+          format: float
+          description: Position indicator (0-1)
+          example: 0.85
+        direction:
+          type: string
+          enum: [buy, sell, neutral]
+          example: buy
+        lastTradeISO:
+          type: string
+          format: date-time
+          example: '2024-03-01T15:30:00Z'
+        ageMin:
+          type: number
+          description: Age of trade in minutes
+          example: 5
+        rmp:
+          type: number
+          format: float
+          description: Reference market price
+          example: 185.50
+        moneyness:
+          type: number
+          format: float
+          description: Strike-to-spot ratio
+          example: 1.024
+        daysToExpiry:
+          type: integer
+          example: 14
+        marketCap:
+          type: number
+          format: float
+          description: Company market capitalization
+          example: 2850000000000
+        notionalToMarketCap:
+          type: number
+          format: float
+          description: Notional as percentage of market cap
+          example: 0.0000156
+        isDeepOTMPut:
+          type: boolean
+          example: false
+        tenorBucket:
+          type: string
+          enum: [short, medium, long]
+          example: short
+        isShortTermSpec:
+          type: boolean
+          example: true
+        isLongTermHedge:
+          type: boolean
+          example: false
+        comboId:
+          type: string
+          description: Combo trade identifier
+          example: ''
+        comboType:
+          type: string
+          enum: [standalone, spread, straddle, collar]
+          example: standalone
+        isComboHedge:
+          type: boolean
+          example: false
+        isLargeOTMCall:
+          type: boolean
+          example: false
+        hedgeScore:
+          type: number
+          format: float
+          description: Hedge probability (0-1)
+          example: 0.12
+        hedgeTags:
+          type: array
+          items:
+            type: string
+          description: Hedge classification tags
+          example: []
+        iv:
+          type: number
+          format: float
+          description: Implied volatility
+          example: 0.28
+        spreadPct:
+          type: number
+          format: float
+          description: Bid-ask spread percentage
+          example: 0.59
+        traderType:
+          type: string
+          enum: [institutional, retail, mixed]
+          example: institutional
+        spotConfirmation:
+          type: string
+          enum: [strong, weak, contradiction]
+          nullable: true
+          description: Spot price confirmation
+          example: strong
+        daysToEarnings:
+          type: integer
+          nullable: true
+          description: Days until earnings announcement
+          example: null
+        directionConfidence:
+          type: number
+          format: float
+          description: Direction confidence (0-1)
+          example: 0.89
+        signalQuality:
+          type: number
+          format: float
+          description: Overall signal quality (0-1)
+          example: 0.85
+        comboMatchTier:
+          type: integer
+          description: Combo matching tier (0=strict, 1=medium, 2=loose)
+          example: 0
+
+    Sentiment:
+      type: object
+      description: Aggregated options sentiment metrics
+      properties:
+        bullishNotional:
+          type: number
+          format: float
+          description: Total bullish notional value
+          example: 145000000
+        bearishNotional:
+          type: number
+          format: float
+          description: Total bearish notional value
+          example: 78000000
+        putCallRatio:
+          type: number
+          format: float
+          description: Put/call ratio
+          example: 0.54
+        sentiment:
+          type: number
+          format: float
+          description: Overall sentiment score (-1 to 1)
+          example: 0.67
+
+    HistoryRecord:
+      type: object
+      description: Historical options scan record
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+          example: '2024-03-01T15:30:00Z'
+        symbol:
+          type: string
+          example: AAPL
+        sentiment:
+          $ref: '#/components/schemas/Sentiment'
+        signalCount:
+          type: integer
+          description: Number of signals detected
+          example: 12
+        topSignals:
+          type: array
+          items:
+            $ref: '#/components/schemas/HistoricalSignal'
+          description: Top signals from this scan
+
+    HistoricalSignal:
+      type: object
+      description: Simplified signal for historical records
+      properties:
+        type:
+          type: string
+          enum: [call, put]
+          example: call
+        strike:
+          type: number
+          format: float
+          example: 190
+        notional:
+          type: number
+          format: float
+          example: 44489000
+        direction:
+          type: string
+          enum: [buy, sell, neutral]
+          example: buy
+
+    SectorTrend:
+      type: object
+      description: Sector performance trend analysis
+      properties:
+        sector:
+          type: string
+          example: Technology
+        avgChange:
+          type: number
+          format: float
+          description: Average percentage change
+          example: 2.45
+        stockCount:
+          type: integer
+          description: Number of stocks in sector
+          example: 87
+        momentum:
+          type: string
+          enum: [strong, moderate, weak, negative]
+          example: strong
+        topGainers:
+          type: array
+          items:
+            type: string
+          description: Top performing symbols
+          example:
+            - NVDA
+            - AAPL
+            - MSFT
+
+    MacroSnapshot:
+      type: object
+      description: Macro market indicators snapshot
+      properties:
+        indices:
+          type: array
+          items:
+            $ref: '#/components/schemas/MacroIndex'
+          description: Major market indices
+        dxy:
+          $ref: '#/components/schemas/MacroTicker'
+          description: US Dollar Index
+        vix:
+          $ref: '#/components/schemas/MacroTicker'
+          description: Volatility Index
+        overallRegime:
+          type: string
+          enum: [bullish, bearish, neutral, mixed]
+          description: Overall market regime
+          example: bullish
+
+    MacroIndex:
+      type: object
+      description: Market index data
+      properties:
+        symbol:
+          type: string
+          example: ^GSPC
+        name:
+          type: string
+          example: S&P 500
+        price:
+          type: number
+          format: float
+          example: 5234.18
+        change:
+          type: number
+          format: float
+          example: 45.23
+        changePercent:
+          type: number
+          format: float
+          example: 0.87
+
+    MacroTicker:
+      type: object
+      description: Macro indicator ticker data
+      properties:
+        price:
+          type: number
+          format: float
+          example: 103.45
+        change:
+          type: number
+          format: float
+          example: 0.12
+        changePercent:
+          type: number
+          format: float
+          example: 0.12
+
+    Error:
+      type: object
+      description: Error response
+      properties:
+        error:
+          type: string
+          description: Error message
+          example: Failed to fetch movers
