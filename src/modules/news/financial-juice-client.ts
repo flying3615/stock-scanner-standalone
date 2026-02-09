@@ -87,7 +87,9 @@ export class FinancialJuiceClient {
     }
 
     const limit = clampLimit(options.limit, 10);
+    newsLogger.info('[FinancialJuice] Symbol search started', { symbol: normalized, limit });
 
+    let stockCodesSource: 'quoted' | 'plain' = 'quoted';
     let stockCodesPayload = await this.requestJson('GetStockCodes', (token) => ({
       info: quoteToken(token),
       TimeOffset: this.timeOffset,
@@ -105,7 +107,13 @@ export class FinancialJuiceClient {
         returnTickersOnly: 'false'
       }));
       stockCodes = toArrayOfRecords(stockCodesPayload);
+      stockCodesSource = 'plain';
     }
+    newsLogger.info('[FinancialJuice] StockCodes lookup completed', {
+      symbol: normalized,
+      source: stockCodesSource,
+      candidateCount: stockCodes.length
+    });
 
     const targetStock = findStockBySymbol(stockCodes, normalized);
     if (!targetStock) {
@@ -116,12 +124,24 @@ export class FinancialJuiceClient {
     }
 
     const rid = readRecordFieldByKeys(targetStock, ['Rid', 'RID', 'rid', 'TickerID', 'tickerId'], '0');
+    const matchedTicker = readRecordFieldByKeys(targetStock, ['id', 'ID', 'symbol', 'Symbol', 'ticker', 'Ticker'], normalized);
+    const matchedLabel = readRecordFieldByKeys(targetStock, ['label', 'Label', 'name', 'Name'], '');
+    const matchedExchange = readRecordFieldByKeys(targetStock, ['exc', 'Exc', 'exchange', 'Exchange'], '');
     if (!rid || rid === '0') {
       newsLogger.warn('[FinancialJuice] Ticker match missing Rid, using headline fallback', {
-        symbol: normalized
+        symbol: normalized,
+        matchedTicker,
+        matchedLabel
       });
       return this.searchByHeadlineFallback(normalized, limit);
     }
+    newsLogger.info('[FinancialJuice] Ticker match resolved', {
+      symbol: normalized,
+      rid,
+      matchedTicker,
+      matchedLabel,
+      matchedExchange
+    });
 
     // Preferred ticker-specific flow: query equities tab with resolved ticker id.
     const previousNewsPayload = await this.requestJson('GetPreviousNews', (token) => ({
@@ -135,6 +155,11 @@ export class FinancialJuiceClient {
       extraNID: '0'
     }));
     const previousNewsItems = this.mapNewsItems(previousNewsPayload, limit);
+    newsLogger.info('[FinancialJuice] Ticker GetPreviousNews completed', {
+      symbol: normalized,
+      rid,
+      count: previousNewsItems.length
+    });
     if (previousNewsItems.length > 0) {
       return previousNewsItems;
     }
@@ -152,6 +177,11 @@ export class FinancialJuiceClient {
     }));
 
     const startupItems = this.mapNewsItems(startupPayload, limit);
+    newsLogger.info('[FinancialJuice] Ticker Startup completed', {
+      symbol: normalized,
+      rid,
+      count: startupItems.length
+    });
     if (startupItems.length > 0) {
       return startupItems;
     }
@@ -312,6 +342,10 @@ export class FinancialJuiceClient {
       }
     }
 
+    newsLogger.info('[FinancialJuice] Headline fallback completed', {
+      symbol,
+      count: matched.length
+    });
     return matched.slice(0, limit);
   }
 }
