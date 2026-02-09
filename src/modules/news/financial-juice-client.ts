@@ -88,20 +88,41 @@ export class FinancialJuiceClient {
 
     const limit = clampLimit(options.limit, 10);
 
-    const stockCodesPayload = await this.requestJson('GetStockCodes', (token) => ({
+    let stockCodesPayload = await this.requestJson('GetStockCodes', (token) => ({
       info: quoteToken(token),
       TimeOffset: this.timeOffset,
       s: quoteToken(normalized),
       returnTickersOnly: 'false'
     }));
+    let stockCodes = toArrayOfRecords(stockCodesPayload);
 
-    const stockCodes = toArrayOfRecords(stockCodesPayload);
-    const targetStock = findStockBySymbol(stockCodes, normalized);
-    if (!targetStock) {
-      return [];
+    // Some sessions require unquoted symbol in GetStockCodes search parameter.
+    if (stockCodes.length === 0) {
+      stockCodesPayload = await this.requestJson('GetStockCodes', (token) => ({
+        info: quoteToken(token),
+        TimeOffset: this.timeOffset,
+        s: normalized,
+        returnTickersOnly: 'false'
+      }));
+      stockCodes = toArrayOfRecords(stockCodesPayload);
     }
 
-    const rid = readRecordFieldAsString(targetStock, 'Rid', '0');
+    const targetStock = findStockBySymbol(stockCodes, normalized);
+    if (!targetStock) {
+      newsLogger.warn('[FinancialJuice] Symbol lookup returned no ticker match, using headline fallback', {
+        symbol: normalized
+      });
+      return this.searchByHeadlineFallback(normalized, limit);
+    }
+
+    const rid = readRecordFieldByKeys(targetStock, ['Rid', 'RID', 'rid', 'TickerID', 'tickerId'], '0');
+    if (!rid || rid === '0') {
+      newsLogger.warn('[FinancialJuice] Ticker match missing Rid, using headline fallback', {
+        symbol: normalized
+      });
+      return this.searchByHeadlineFallback(normalized, limit);
+    }
+
     const startupPayload = await this.requestJson('Startup', (token) => ({
       info: quoteToken(token),
       TimeOffset: this.timeOffset,
@@ -113,7 +134,15 @@ export class FinancialJuiceClient {
       extraNID: '0'
     }));
 
-    return this.mapNewsItems(startupPayload, limit);
+    const startupItems = this.mapNewsItems(startupPayload, limit);
+    if (startupItems.length > 0) {
+      return startupItems;
+    }
+
+    newsLogger.warn('[FinancialJuice] Startup lookup returned empty, using headline fallback', {
+      symbol: normalized
+    });
+    return this.searchByHeadlineFallback(normalized, limit);
   }
 
   async refreshToken() {
@@ -234,6 +263,40 @@ export class FinancialJuiceClient {
       };
     });
   }
+
+  private async searchByHeadlineFallback(symbol: string, limit: number): Promise<FinancialJuiceNewsItem[]> {
+    const categories: FinancialJuiceCategory[] = ['equities', 'indices', 'macro', 'crypto'];
+    const seen = new Set<string>();
+    const matched: FinancialJuiceNewsItem[] = [];
+    const scanLimit = Math.max(limit * 6, 40);
+
+    for (const category of categories) {
+      try {
+        const items = await this.fetchNews({ category, limit: scanLimit });
+        for (const item of items) {
+          if (!headlineMentionsSymbol(item.headline, symbol)) {
+            continue;
+          }
+          if (seen.has(item.id)) {
+            continue;
+          }
+          seen.add(item.id);
+          matched.push(item);
+          if (matched.length >= limit) {
+            return matched.slice(0, limit);
+          }
+        }
+      } catch (error) {
+        newsLogger.warn('[FinancialJuice] Headline fallback category scan failed', {
+          symbol,
+          category,
+          error: error instanceof Error ? error.message : String(error)
+        });
+      }
+    }
+
+    return matched.slice(0, limit);
+  }
 }
 
 export function createFinancialJuiceClient(config: FinancialJuiceClientConfig): FinancialJuiceClient {
@@ -328,6 +391,16 @@ function readRecordFieldAsString(record: Record<string, unknown>, key: string, f
   return fallback;
 }
 
+function readRecordFieldByKeys(record: Record<string, unknown>, keys: string[], fallback = ''): string {
+  for (const key of keys) {
+    const value = readRecordFieldAsString(record, key);
+    if (value) {
+      return value;
+    }
+  }
+  return fallback;
+}
+
 function readRecordFieldAsBoolean(record: Record<string, unknown>, key: string): boolean {
   const value = record[key];
   if (typeof value === 'boolean') {
@@ -344,15 +417,37 @@ function readRecordFieldAsBoolean(record: Record<string, unknown>, key: string):
 }
 
 function findStockBySymbol(records: Record<string, unknown>[], symbol: string): Record<string, unknown> | null {
-  const exact = records.find((item) => readRecordFieldAsString(item, 'id').toUpperCase() === symbol);
+  const symbolKeys = ['id', 'ID', 'symbol', 'Symbol', 'ticker', 'Ticker', 'Code', 'code'];
+
+  const exact = records.find((item) => {
+    const value = readRecordFieldByKeys(item, symbolKeys);
+    return value.toUpperCase() === symbol;
+  });
   if (exact) {
     return exact;
   }
 
-  const prefixed = records.find((item) => readRecordFieldAsString(item, 'id').toUpperCase().startsWith(`${symbol}.`));
+  const prefixed = records.find((item) => {
+    const value = readRecordFieldByKeys(item, symbolKeys).toUpperCase();
+    return value.startsWith(`${symbol}.`);
+  });
   if (prefixed) {
     return prefixed;
   }
 
   return null;
+}
+
+function headlineMentionsSymbol(headline: string, symbol: string): boolean {
+  if (!headline) {
+    return false;
+  }
+  const normalizedHeadline = headline.toUpperCase();
+  if (normalizedHeadline.includes(`$${symbol}`)) {
+    return true;
+  }
+
+  const escapedSymbol = symbol.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const plainSymbolPattern = new RegExp(`\\b${escapedSymbol}\\b`, 'i');
+  return plainSymbolPattern.test(headline);
 }
