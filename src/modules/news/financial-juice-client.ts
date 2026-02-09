@@ -123,6 +123,23 @@ export class FinancialJuiceClient {
       return this.searchByHeadlineFallback(normalized, limit);
     }
 
+    // Preferred ticker-specific flow: query equities tab with resolved ticker id.
+    const previousNewsPayload = await this.requestJson('GetPreviousNews', (token) => ({
+      info: quoteToken(token),
+      TimeOffset: this.timeOffset,
+      tabID: String(CATEGORY_TABS.equities),
+      oldID: '0',
+      TickerID: rid,
+      FeedCompanyID: '0',
+      strSearch: '',
+      extraNID: '0'
+    }));
+    const previousNewsItems = this.mapNewsItems(previousNewsPayload, limit);
+    if (previousNewsItems.length > 0) {
+      return previousNewsItems;
+    }
+
+    // Fallback: Startup payload sometimes contains symbol-specific news under payload.News.
     const startupPayload = await this.requestJson('Startup', (token) => ({
       info: quoteToken(token),
       TimeOffset: this.timeOffset,
@@ -242,7 +259,7 @@ export class FinancialJuiceClient {
   }
 
   private mapNewsItems(payload: unknown, limit: number): FinancialJuiceNewsItem[] {
-    const records = toArrayOfRecords(payload).slice(0, limit);
+    const records = extractNewsRecords(payload).slice(0, limit);
     const timestampSeed = Date.now();
 
     return records.map((record, index) => {
@@ -378,6 +395,24 @@ function toArrayOfRecords(value: unknown): Record<string, unknown>[] {
     return [];
   }
   return value.filter(isRecord);
+}
+
+function extractNewsRecords(payload: unknown): Record<string, unknown>[] {
+  if (Array.isArray(payload)) {
+    return toArrayOfRecords(payload);
+  }
+
+  if (isRecord(payload)) {
+    const nestedCandidates = ['News', 'news', 'Items', 'items', 'Data', 'data'];
+    for (const key of nestedCandidates) {
+      const value = payload[key];
+      if (Array.isArray(value)) {
+        return toArrayOfRecords(value);
+      }
+    }
+  }
+
+  return [];
 }
 
 function readRecordFieldAsString(record: Record<string, unknown>, key: string, fallback = ''): string {
