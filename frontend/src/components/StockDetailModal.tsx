@@ -1,6 +1,6 @@
 import type { Dispatch, SetStateAction } from 'react';
 import { Activity, BarChart2 } from 'lucide-react';
-import type { Stock, OptionSignal, StockSnapshot } from '../types';
+import type { Stock, OptionSignal, StockSnapshot, NewsItem } from '../types';
 import { MoneyFlowGauge } from './MoneyFlowGauge';
 import { getSectorColorClass } from '../utils/sectorColors';
 
@@ -15,6 +15,9 @@ interface StockDetailModalProps {
     optionsData: { signals: OptionSignal[], moneyFlowStrength: number } | null;
     historyLoading: boolean;
     historyData: StockSnapshot[];
+    newsLoading: boolean;
+    newsData: NewsItem[];
+    newsError: string | null;
 }
 
 function MetricCard({ label, value, sub, status = 'neutral' }: { label: string, value: string, sub: string, status?: MetricStatus }) {
@@ -42,7 +45,10 @@ export function StockDetailModal({
     optionsLoading,
     optionsData,
     historyLoading,
-    historyData
+    historyData,
+    newsLoading,
+    newsData,
+    newsError
 }: StockDetailModalProps) {
     const metrics = selectedStock.valueMetrics;
     const thresholds = selectedStock.thresholds;
@@ -244,6 +250,41 @@ export function StockDetailModal({
                             ) : (
                                 <div className="text-red-400 text-sm">Failed to load options data.</div>
                             )}
+
+                            <div className="mt-6">
+                                <h4 className="text-sm font-semibold text-gray-200 mb-3">Related News</h4>
+                                {newsLoading ? (
+                                    <div className="flex justify-center py-6">
+                                        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
+                                    </div>
+                                ) : newsError ? (
+                                    <div className="text-red-400 text-sm">{newsError}</div>
+                                ) : newsData.length === 0 ? (
+                                    <div className="text-gray-500 text-sm italic">No recent news for this symbol.</div>
+                                ) : (
+                                    <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
+                                        {newsData.slice(0, 12).map((item) => (
+                                            <div
+                                                key={item.id}
+                                                className="bg-neutral-800/70 border border-neutral-700 rounded-lg p-3"
+                                            >
+                                                <div className="flex items-start justify-between gap-3">
+                                                    <p className="text-sm text-gray-100 leading-snug">{item.headline}</p>
+                                                    <span className={`shrink-0 text-[10px] px-2 py-0.5 rounded border ${item.urgency >= 5
+                                                        ? 'border-red-500/40 text-red-400'
+                                                        : 'border-neutral-500/40 text-gray-400'
+                                                        }`}>
+                                                        {item.category}
+                                                    </span>
+                                                </div>
+                                                <div className="mt-1 text-[10px] text-gray-500">
+                                                    {item.source} · {new Date(item.timestamp).toLocaleString()}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     </div>
                 ) : (

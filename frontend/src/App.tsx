@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { Search } from 'lucide-react';
 import axios from 'axios';
-import type { Stock, OptionSignal, StockSnapshot, MacroSnapshot } from './types';
+import type { Stock, OptionSignal, StockSnapshot, MacroSnapshot, NewsItem } from './types';
 import { StockDetailModal } from './components/StockDetailModal';
 import { MoneyFlowGauge } from './components/MoneyFlowGauge';
 import { SectorStats } from './components/SectorStats';
@@ -11,6 +11,20 @@ import { getSectorColorClass } from './utils/sectorColors';
 // API Base URL
 const rawBase = (import.meta.env.VITE_API_BASE ?? '').replace(/\/$/, '');
 const API_URL = rawBase ? `${rawBase}/api` : '/api';
+
+interface FinancialJuiceTokenStatus {
+  configured: boolean;
+  hasToken: boolean;
+  obtainedAt?: number;
+  softExpireAt?: number;
+  hardExpireAt?: number;
+  refreshFailures?: number;
+  lastRefreshReason?: string;
+  refreshedBy?: string;
+  msToSoftExpire?: number;
+  msToHardExpire?: number;
+  likelyExpired?: boolean;
+}
 
 function App() {
   const [moversType, setMoversType] = useState<'active' | 'gainers' | 'losers'>('active');
@@ -27,10 +41,18 @@ function App() {
   const [viewMode, setViewMode] = useState<'analysis' | 'history'>('analysis');
   const [historyData, setHistoryData] = useState<StockSnapshot[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [newsData, setNewsData] = useState<NewsItem[]>([]);
+  const [newsLoading, setNewsLoading] = useState(false);
+  const [newsError, setNewsError] = useState<string | null>(null);
 
   // Search State
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);
+  const [newsTokenInput, setNewsTokenInput] = useState('');
+  const [newsTokenStatus, setNewsTokenStatus] = useState<FinancialJuiceTokenStatus | null>(null);
+  const [newsTokenLoading, setNewsTokenLoading] = useState(false);
+  const [newsTokenSubmitting, setNewsTokenSubmitting] = useState(false);
+  const [newsTokenMessage, setNewsTokenMessage] = useState<string | null>(null);
 
   const handleSearch = async (e: FormEvent) => {
     e.preventDefault();
@@ -79,6 +101,10 @@ function App() {
     return () => clearInterval(interval);
   }, []);
 
+  useEffect(() => {
+    fetchNewsTokenStatus();
+  }, []);
+
   const fetchMovers = async () => {
     setLoading(true);
     try {
@@ -105,33 +131,107 @@ function App() {
     }
   };
 
-  const handleStockClick = async (stock: Stock) => {
+  const fetchNewsTokenStatus = async () => {
+    setNewsTokenLoading(true);
+    try {
+      const { data } = await axios.get<FinancialJuiceTokenStatus>(`${API_URL}/news/token/status`);
+      setNewsTokenStatus(data);
+    } catch (err) {
+      console.error('[News] Failed to load token status', err);
+      setNewsTokenStatus(null);
+    } finally {
+      setNewsTokenLoading(false);
+    }
+  };
+
+  const handleNewsTokenSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    const token = newsTokenInput.trim();
+    if (!token) {
+      return;
+    }
+
+    setNewsTokenSubmitting(true);
+    setNewsTokenMessage(null);
+    try {
+      await axios.post(`${API_URL}/news/token`, { token });
+      setNewsTokenInput('');
+      setNewsTokenMessage('Token updated');
+      await fetchNewsTokenStatus();
+    } catch (err) {
+      console.error('[News] Failed to set token', err);
+      setNewsTokenMessage('Failed to set token');
+    } finally {
+      setNewsTokenSubmitting(false);
+    }
+  };
+
+  const handleNewsTokenClear = async () => {
+    setNewsTokenSubmitting(true);
+    setNewsTokenMessage(null);
+    try {
+      await axios.delete(`${API_URL}/news/token`);
+      setNewsTokenMessage('Token cleared');
+      await fetchNewsTokenStatus();
+    } catch (err) {
+      console.error('[News] Failed to clear token', err);
+      setNewsTokenMessage('Failed to clear token');
+    } finally {
+      setNewsTokenSubmitting(false);
+    }
+  };
+
+  const handleStockClick = (stock: Stock) => {
     setSelectedStock(stock);
     setOptionsData(null);
     setHistoryData([]); // Reset history data to avoid flashing old data from previous stock
+    setNewsData([]);
+    setNewsError(null);
     setViewMode('analysis'); // Reset to analysis view
+
     setOptionsLoading(true);
+    setHistoryLoading(true);
+    setNewsLoading(true);
 
     // Fetch current options data
-    try {
-      const { data } = await axios.get(`${API_URL}/options/${stock.symbol}`);
-      setOptionsData(data);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setOptionsLoading(false);
-    }
+    void (async () => {
+      try {
+        const { data } = await axios.get(`${API_URL}/options/${stock.symbol}`);
+        setOptionsData(data);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setOptionsLoading(false);
+      }
+    })();
 
     // Fetch history in background
-    setHistoryLoading(true);
-    try {
-      const { data } = await axios.get(`${API_URL}/history/${stock.symbol}`);
-      setHistoryData(data);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setHistoryLoading(false);
-    }
+    void (async () => {
+      try {
+        const { data } = await axios.get(`${API_URL}/history/${stock.symbol}`);
+        setHistoryData(data);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setHistoryLoading(false);
+      }
+    })();
+
+    // Fetch related news in background
+    void (async () => {
+      try {
+        const { data } = await axios.get(`${API_URL}/news/search/${stock.symbol}`, {
+          params: { limit: 20 }
+        });
+        const items = Array.isArray(data?.items) ? data.items as NewsItem[] : [];
+        setNewsData(items);
+      } catch (err) {
+        console.error('[News] Failed to load symbol news', err);
+        setNewsError('Failed to load symbol news');
+      } finally {
+        setNewsLoading(false);
+      }
+    })();
   };
 
   return (
@@ -221,6 +321,62 @@ function App() {
           </div>
         </div>
       </header>
+
+      <section className="mb-6 bg-neutral-800/40 border border-neutral-700/50 rounded-xl p-4">
+        <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-3">
+          <div>
+            <h2 className="text-sm font-semibold text-gray-200">FinancialJuice Token</h2>
+            <div className="mt-1 flex flex-wrap items-center gap-2 text-xs">
+              <span className={`px-2 py-0.5 rounded border ${newsTokenStatus?.hasToken ? 'border-green-500/40 text-green-400' : 'border-yellow-500/40 text-yellow-300'}`}>
+                {newsTokenStatus?.hasToken ? 'Token Ready' : 'Token Missing'}
+              </span>
+              {newsTokenStatus?.hardExpireAt && (
+                <span className="text-gray-400">
+                  Hard Expire: {new Date(newsTokenStatus.hardExpireAt).toLocaleString()}
+                </span>
+              )}
+              {newsTokenLoading && <span className="text-gray-500">Refreshing status...</span>}
+            </div>
+            {newsTokenMessage && (
+              <p className="mt-1 text-xs text-blue-300">{newsTokenMessage}</p>
+            )}
+          </div>
+
+          <div className="flex flex-col sm:flex-row gap-2 xl:min-w-[540px]">
+            <form onSubmit={handleNewsTokenSubmit} className="flex-1 flex gap-2">
+              <input
+                type="password"
+                placeholder="Paste FinancialJuice token..."
+                className="w-full bg-neutral-900 border border-neutral-700 rounded-lg px-3 py-2 text-sm text-gray-100 placeholder:text-gray-600 focus:outline-none focus:border-blue-500"
+                value={newsTokenInput}
+                onChange={(e) => setNewsTokenInput(e.target.value)}
+                disabled={newsTokenSubmitting}
+              />
+              <button
+                type="submit"
+                className="px-3 py-2 rounded-lg text-sm font-medium bg-blue-600 text-white hover:bg-blue-500 disabled:opacity-60"
+                disabled={newsTokenSubmitting || !newsTokenInput.trim()}
+              >
+                Save
+              </button>
+            </form>
+            <button
+              onClick={() => void fetchNewsTokenStatus()}
+              className="px-3 py-2 rounded-lg text-sm font-medium bg-neutral-700 text-gray-100 hover:bg-neutral-600 disabled:opacity-60"
+              disabled={newsTokenSubmitting || newsTokenLoading}
+            >
+              Refresh
+            </button>
+            <button
+              onClick={handleNewsTokenClear}
+              className="px-3 py-2 rounded-lg text-sm font-medium bg-red-600/80 text-white hover:bg-red-500/80 disabled:opacity-60"
+              disabled={newsTokenSubmitting}
+            >
+              Clear
+            </button>
+          </div>
+        </div>
+      </section>
 
       {/* Main Content */}
       {dashboardView === 'radar' ? (
@@ -349,6 +505,9 @@ function App() {
           optionsData={optionsData}
           historyLoading={historyLoading}
           historyData={historyData}
+          newsLoading={newsLoading}
+          newsData={newsData}
+          newsError={newsError}
         />
       )}
     </div>

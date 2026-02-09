@@ -28,6 +28,8 @@ tags:
     description: Sector trends and macro indicators
   - name: History
     description: Historical scan results
+  - name: News
+    description: FinancialJuice news retrieval and token management
 
 paths:
   /api/movers:
@@ -356,6 +358,217 @@ paths:
                 overallRegime: bullish
         '500':
           description: Failed to fetch macro snapshot
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/news:
+    get:
+      tags:
+        - News
+      summary: Get FinancialJuice news
+      description: |
+        Returns latest FinancialJuice news by category with optional cache bypass.
+        When request fails but cache exists, stale cache may be returned.
+      operationId: getFinancialJuiceNews
+      parameters:
+        - name: category
+          in: query
+          description: News category
+          required: false
+          schema:
+            type: string
+            enum: [macro, indices, equities, crypto]
+            default: macro
+        - name: limit
+          in: query
+          description: Maximum items to return
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 20
+        - name: fresh
+          in: query
+          description: Force fresh fetch and bypass in-memory cache
+          required: false
+          schema:
+            type: boolean
+            default: false
+      responses:
+        '200':
+          description: News list response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NewsListResponse'
+              example:
+                category: macro
+                cached: false
+                count: 2
+                items:
+                  - id: '921381'
+                    timestamp: '2026-02-09T13:05:12.000Z'
+                    headline: 'Fed official says inflation progress remains uneven'
+                    category: 'Economy'
+                    urgency: 3
+                    source: 'FinancialJuice'
+                  - id: '921382'
+                    timestamp: '2026-02-09T13:10:45.000Z'
+                    headline: 'US treasury yields rise ahead of auction'
+                    category: 'Bonds'
+                    urgency: 3
+                    source: 'FinancialJuice'
+        '500':
+          description: Failed to load news
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/news/search/{symbol}:
+    get:
+      tags:
+        - News
+      summary: Search news by symbol
+      description: Searches FinancialJuice ticker news for a specific symbol.
+      operationId: searchFinancialJuiceNews
+      parameters:
+        - name: symbol
+          in: path
+          description: Stock ticker symbol
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            example: AAPL
+        - name: limit
+          in: query
+          description: Maximum items to return
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 20
+      responses:
+        '200':
+          description: Symbol news list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NewsSearchResponse'
+              example:
+                symbol: AAPL
+                count: 1
+                items:
+                  - id: '921390'
+                    timestamp: '2026-02-09T13:22:00.000Z'
+                    headline: 'Apple supplier outlook beats expectations'
+                    category: 'Equities'
+                    urgency: 3
+                    source: 'FinancialJuice'
+        '400':
+          description: Missing or invalid symbol
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Failed to search news
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/news/token/status:
+    get:
+      tags:
+        - News
+      summary: Get FinancialJuice token status
+      description: Returns whether a token exists and its expiration metadata.
+      operationId: getFinancialJuiceTokenStatus
+      responses:
+        '200':
+          description: Token status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NewsTokenStatus'
+              example:
+                configured: true
+                hasToken: true
+                obtainedAt: 1739109600000
+                softExpireAt: 1739628000000
+                hardExpireAt: 1739714400000
+                refreshFailures: 0
+                lastRefreshReason: forced
+                refreshedBy: manual-api
+                msToSoftExpire: 3600000
+                msToHardExpire: 7200000
+                likelyExpired: false
+        '500':
+          description: Failed to read token status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/news/token:
+    post:
+      tags:
+        - News
+      summary: Set FinancialJuice token manually
+      description: Sets token for FinancialJuice API and optional TTL values.
+      operationId: setFinancialJuiceToken
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NewsTokenSetRequest'
+            example:
+              token: 'REDACTED_FINANCIALJUICE_TOKEN'
+              softTtlMinutes: 8640
+              hardTtlMinutes: 10080
+      responses:
+        '200':
+          description: Updated token status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NewsTokenStatus'
+        '400':
+          description: Invalid request body
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Failed to set token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    delete:
+      tags:
+        - News
+      summary: Clear FinancialJuice token
+      description: Removes saved token from local token store.
+      operationId: clearFinancialJuiceToken
+      responses:
+        '200':
+          description: Token cleared
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NewsTokenClearResponse'
+              example:
+                cleared: true
+        '500':
+          description: Failed to clear token
           content:
             application/json:
               schema:
@@ -834,6 +1047,153 @@ components:
           type: number
           format: float
           example: 0.12
+
+    NewsItem:
+      type: object
+      description: Normalized FinancialJuice news item
+      properties:
+        id:
+          type: string
+          example: '921381'
+        timestamp:
+          type: string
+          format: date-time
+          example: '2026-02-09T13:05:12.000Z'
+        headline:
+          type: string
+          example: Fed official says inflation progress remains uneven
+        category:
+          type: string
+          example: Economy
+        urgency:
+          type: integer
+          minimum: 1
+          maximum: 5
+          example: 3
+        source:
+          type: string
+          example: FinancialJuice
+
+    NewsListResponse:
+      type: object
+      description: FinancialJuice list response for category news
+      properties:
+        category:
+          type: string
+          enum: [macro, indices, equities, crypto]
+          example: macro
+        cached:
+          type: boolean
+          example: true
+        stale:
+          type: boolean
+          description: Indicates stale cache fallback when fetch fails
+          example: false
+        fetchedAt:
+          type: integer
+          format: int64
+          description: Cache fetch timestamp in milliseconds
+          example: 1739109600000
+        count:
+          type: integer
+          example: 20
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/NewsItem'
+
+    NewsSearchResponse:
+      type: object
+      description: FinancialJuice ticker search response
+      properties:
+        symbol:
+          type: string
+          example: AAPL
+        count:
+          type: integer
+          example: 3
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/NewsItem'
+
+    NewsTokenSetRequest:
+      type: object
+      required:
+        - token
+      properties:
+        token:
+          type: string
+          description: FinancialJuice info token
+          example: REDACTED_FINANCIALJUICE_TOKEN
+        softTtlMinutes:
+          type: integer
+          minimum: 1
+          description: Soft expiration duration in minutes
+          example: 8640
+        hardTtlMinutes:
+          type: integer
+          minimum: 1
+          description: Hard expiration duration in minutes
+          example: 10080
+
+    NewsTokenStatus:
+      type: object
+      description: Runtime status of FinancialJuice token
+      properties:
+        configured:
+          type: boolean
+          example: true
+        hasToken:
+          type: boolean
+          example: true
+        obtainedAt:
+          type: integer
+          format: int64
+          nullable: true
+          example: 1739109600000
+        softExpireAt:
+          type: integer
+          format: int64
+          nullable: true
+          example: 1739628000000
+        hardExpireAt:
+          type: integer
+          format: int64
+          nullable: true
+          example: 1739714400000
+        refreshFailures:
+          type: integer
+          example: 0
+        lastRefreshReason:
+          type: string
+          nullable: true
+          example: forced
+        refreshedBy:
+          type: string
+          nullable: true
+          example: manual-api
+        msToSoftExpire:
+          type: integer
+          format: int64
+          nullable: true
+          example: 3600000
+        msToHardExpire:
+          type: integer
+          format: int64
+          nullable: true
+          example: 7200000
+        likelyExpired:
+          type: boolean
+          example: false
+
+    NewsTokenClearResponse:
+      type: object
+      description: Response after clearing saved FinancialJuice token
+      properties:
+        cleared:
+          type: boolean
+          example: true
 
     Error:
       type: object

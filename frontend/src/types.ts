@@ -43,6 +43,15 @@ export interface OptionSignal {
     spotConfirmation: string | null;
 }
 
+export interface NewsItem {
+    id: string;
+    timestamp: string;
+    headline: string;
+    category: string;
+    urgency: number;
+    source: string;
+}
+
 export interface OptionCombo {
     strategy: string;
     description: string;
