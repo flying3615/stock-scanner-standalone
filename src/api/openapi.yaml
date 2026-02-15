@@ -14,10 +14,10 @@ info:
   contact:
     name: Stock Scanner API
 servers:
+  - url: /
+    description: Current origin (recommended)
   - url: http://localhost:3000
     description: Local development server
-  - url: https://api.example.com
-    description: Production server (placeholder)
 
 tags:
   - name: Market Data
