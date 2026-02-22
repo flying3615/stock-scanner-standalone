@@ -1,5 +1,5 @@
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import axios from 'axios';
 import type { EnhancedSectorTrends, EnhancedSectorData, SectorSignal } from '../types';
 
