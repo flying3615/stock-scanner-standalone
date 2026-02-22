@@ -80,6 +80,45 @@ export interface SectorStat {
     rank: number;
 }
 
+// Enhanced sector analysis types
+export interface SectorHistoryPoint {
+    date: string;
+    rank: number;
+    avgChange: number;
+    totalVolume: number;
+    stockCount: number;
+}
+
+export interface EnhancedSectorData {
+    sector: string;
+    currentRank: number;
+    avgChange: number;
+    totalVolume: number;
+    consecutiveTop3: number;
+    leader: string | null;
+    leaderChange: number | null;
+    stockCount: number;
+    volumeChangeRate: number | null;
+    rankDelta: number | null;
+    divergenceFlag: boolean;
+    leaderGap: number | null;
+    isHot: boolean;
+    history: SectorHistoryPoint[];
+}
+
+export interface SectorSignal {
+    type: 'momentum_decay' | 'volume_divergence' | 'rank_breakout' | 'sector_exhaustion' | 'emerging_sector';
+    sector: string;
+    severity: 'info' | 'warning' | 'alert';
+    message: string;
+    detail: string;
+}
+
+export interface EnhancedSectorTrends {
+    sectors: EnhancedSectorData[];
+    signals: SectorSignal[];
+}
+
 export interface MacroIndexSnapshot {
     symbol: string;
     label: string;

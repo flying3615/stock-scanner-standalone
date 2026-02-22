@@ -3,7 +3,7 @@ import express from 'express';
 import cors from 'cors';
 import { fetchMarketMovers, MoverType } from './worker/scanner/market-movers.js';
 import { calculateMoneyFlowStrength } from './worker/util.js';
-import { getSectorTrends } from './worker/analytics/sector-trend.js';
+import { getSectorTrends, getEnhancedSectorTrends } from './worker/analytics/sector-trend.js';
 import { analyzeStockValue } from './worker/scanner/value-analyzer.js';
 import { scanSymbolOptions } from './worker/options/options.js';
 import { saveScanResult, getHistory } from './db/persistence.js';
@@ -170,14 +170,30 @@ app.get('/api/history/:symbol', async (req, res) => {
     }
 });
 
-// Analytics Endpoint
+// Analytics Endpoint (raw)
 app.get('/api/trends/sectors', async (req, res) => {
     try {
-        const trends = await getSectorTrends(14); // Default 14 days
+        const trends = await getSectorTrends(14);
         res.json(trends);
     } catch (error) {
         console.error(error);
         res.status(500).json({ error: 'Failed to fetch sector trends' });
+    }
+});
+
+// Enhanced Sector Radar with prediction signals
+app.get('/api/trends/sectors/enhanced', async (req, res) => {
+    try {
+        const cacheKey = 'enhanced_sector_trends';
+        const cached = cache.get(cacheKey);
+        if (cached) return res.json(cached);
+
+        const data = await getEnhancedSectorTrends(14);
+        cache.set(cacheKey, data, 600); // Cache 10 min
+        res.json(data);
+    } catch (error) {
+        console.error('[API] Failed to fetch enhanced sector trends', error);
+        res.status(500).json({ error: 'Failed to fetch enhanced sector trends' });
     }
 });
 
