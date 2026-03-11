@@ -1,4 +1,5 @@
 import type { CallCreditCandidate } from '../types';
+import { formatCallCreditTemplateHorizon } from '../utils/callCredit';
 
 interface CallCreditDetailPanelProps {
     candidate: CallCreditCandidate | null;
@@ -63,6 +64,12 @@ export function CallCreditDetailPanel({ candidate }: CallCreditDetailPanelProps)
                     <div className="text-[11px] uppercase tracking-[0.18em] text-gray-500">Take Profit / Stop</div>
                     <div className="mt-2 font-mono text-base text-white">
                         {spread ? `${spread.takeProfitAt.toFixed(2)} / ${spread.stopLossAt.toFixed(2)}` : '—'}
+                    </div>
+                </div>
+                <div className="rounded-3xl bg-black/20 p-4">
+                    <div className="text-[11px] uppercase tracking-[0.18em] text-gray-500">Expiry</div>
+                    <div className="mt-2 font-mono text-base text-white">
+                        {spread ? formatCallCreditTemplateHorizon(spread.expiryISO, candidate.dte ?? spread.dte) : '—'}
                     </div>
                 </div>
             </div>

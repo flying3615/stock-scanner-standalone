@@ -112,6 +112,7 @@ export function selectCallCreditTemplate(
       }
 
       const template: CallCreditTemplate = {
+        expiryISO: input.expiryISO,
         shortStrike: shortOption.strike,
         longStrike: longOption.strike,
         width,
@@ -124,7 +125,7 @@ export function selectCallCreditTemplate(
         shortMid,
         longMid,
         creditMid,
-        creditPctWidth: shortMid / width,
+        creditPctWidth: creditMid / width,
         takeProfitAt: creditMid * 0.4,
         stopLossAt: creditMid * 2,
       };

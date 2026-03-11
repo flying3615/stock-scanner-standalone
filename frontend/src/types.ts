@@ -145,6 +145,7 @@ export interface MacroSnapshot {
 }
 
 export interface CallCreditTemplate {
+    expiryISO: string;
     shortStrike: number;
     longStrike: number;
     width: number;

@@ -1,4 +1,5 @@
 import type { CallCreditCandidate } from '../types';
+import { formatCallCreditTemplateHorizon } from '../utils/callCredit';
 
 interface CallCreditCandidateListProps {
     candidates: CallCreditCandidate[];
@@ -35,7 +36,9 @@ export function CallCreditCandidateList({ candidates, selectedSymbol, onSelect }
                     type="button"
                     className={`w-full cursor-pointer rounded-3xl border p-4 text-left transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-emerald-400/70 ${
                         selectedSymbol === candidate.symbol
-                            ? 'border-emerald-400/70 bg-emerald-500/10 shadow-[0_0_0_1px_rgba(52,211,153,0.15)]'
+                            ? candidate.setupState === 'ACTIONABLE'
+                                ? 'border-emerald-400/70 bg-emerald-500/10 shadow-[0_0_0_1px_rgba(52,211,153,0.15)]'
+                                : 'border-neutral-400/40 bg-neutral-800/90 shadow-[0_0_0_1px_rgba(163,163,163,0.12)]'
                             : candidate.setupState === 'ACTIONABLE'
                                 ? 'border-red-500/20 bg-red-950/20 hover:border-red-400/40 hover:bg-red-950/30'
                                 : 'border-neutral-700 bg-neutral-900/70 hover:border-neutral-500 hover:bg-neutral-900'
@@ -88,7 +91,10 @@ export function CallCreditCandidateList({ candidates, selectedSymbol, onSelect }
                                         {candidate.spreadTemplate.shortStrike}/{candidate.spreadTemplate.longStrike}
                                     </div>
                                     <div className="text-sm text-gray-400">
-                                        {candidate.dte ?? candidate.spreadTemplate.dte} DTE · Credit {candidate.spreadTemplate.creditMid.toFixed(2)}
+                                        {formatCallCreditTemplateHorizon(
+                                            candidate.spreadTemplate.expiryISO,
+                                            candidate.dte ?? candidate.spreadTemplate.dte,
+                                        )} · Credit {candidate.spreadTemplate.creditMid.toFixed(2)}
                                     </div>
                                     <div className="text-xs text-emerald-300">
                                         Premium efficiency {(candidate.spreadTemplate.creditPctWidth * 100).toFixed(0)}%

@@ -11,6 +11,11 @@ import { StrategyMacroBar } from './components/StrategyMacroBar';
 import { CallCreditCandidateList } from './components/CallCreditCandidateList';
 import { CallCreditDetailPanel } from './components/CallCreditDetailPanel';
 import { getSectorColorClass } from './utils/sectorColors';
+import {
+  getDefaultSelectedCallCreditSymbol,
+  getVisibleCallCreditCandidates,
+  hasActionableCallCreditCandidates,
+} from './utils/callCredit';
 
 // API Base URL
 const rawBase = (import.meta.env.VITE_API_BASE ?? '').replace(/\/$/, '');
@@ -44,6 +49,7 @@ function App() {
   const [strategyLoading, setStrategyLoading] = useState(false);
   const [strategyError, setStrategyError] = useState<string | null>(null);
   const [selectedStrategySymbol, setSelectedStrategySymbol] = useState<string | null>(null);
+  const [showStrategyWatchlist, setShowStrategyWatchlist] = useState(false);
 
   // History State
   const [viewMode, setViewMode] = useState<'analysis' | 'history'>('analysis');
@@ -164,7 +170,8 @@ function App() {
     try {
       const { data } = await axios.get<CallCreditStrategySnapshot>(`${API_URL}/strategies/call-credit`);
       setStrategyData(data);
-      setSelectedStrategySymbol(data.candidates[0]?.symbol ?? null);
+      setShowStrategyWatchlist(false);
+      setSelectedStrategySymbol(getDefaultSelectedCallCreditSymbol(data.candidates, false));
     } catch (err) {
       console.error('[Strategies] Failed to load call credit snapshot', err);
       setStrategyData(null);
@@ -264,9 +271,13 @@ function App() {
     })();
   };
 
+  const visibleStrategyCandidates = strategyData
+    ? getVisibleCallCreditCandidates(strategyData.candidates, showStrategyWatchlist)
+    : [];
+  const hasActionableStrategies = hasActionableCallCreditCandidates(strategyData?.candidates ?? []);
   const selectedStrategyCandidate =
-    strategyData?.candidates.find((candidate) => candidate.symbol === selectedStrategySymbol)
-    ?? strategyData?.candidates[0]
+    visibleStrategyCandidates.find((candidate) => candidate.symbol === selectedStrategySymbol)
+    ?? visibleStrategyCandidates[0]
     ?? null;
 
   return (
@@ -449,20 +460,51 @@ function App() {
                     <div>
                       <h2 className="text-xl font-semibold text-white">Ranked Call Credit Candidates</h2>
                       <p className="mt-1 text-sm text-gray-400">
-                        Short-term bearish breakdowns ranked by structure, macro pressure, and available spread quality.
+                        {hasActionableStrategies && !showStrategyWatchlist
+                          ? 'Showing only actionable setups by default. Expand the watchlist if you want borderline names.'
+                          : 'Short-term bearish breakdowns ranked by structure, macro pressure, and available spread quality.'}
                       </p>
                     </div>
-                    <button
-                      type="button"
-                      className="rounded-full border border-neutral-700 bg-neutral-900 px-4 py-2 text-sm font-medium text-gray-200 transition hover:border-emerald-400/50 hover:text-white"
-                      onClick={() => void fetchStrategySnapshot()}
-                    >
-                      Refresh
-                    </button>
+                    <div className="flex items-center gap-2">
+                      {hasActionableStrategies && (
+                        <button
+                          type="button"
+                          className={`rounded-full border px-4 py-2 text-sm font-medium transition ${
+                            showStrategyWatchlist
+                              ? 'border-amber-400/40 bg-amber-500/10 text-amber-200 hover:border-amber-300/60'
+                              : 'border-neutral-700 bg-neutral-900 text-gray-200 hover:border-emerald-400/50 hover:text-white'
+                          }`}
+                          onClick={() => {
+                            const nextShowWatchlist = !showStrategyWatchlist;
+                            setShowStrategyWatchlist(nextShowWatchlist);
+                            if (strategyData) {
+                              setSelectedStrategySymbol(
+                                getDefaultSelectedCallCreditSymbol(strategyData.candidates, nextShowWatchlist),
+                              );
+                            }
+                          }}
+                        >
+                          {showStrategyWatchlist ? 'Actionable Only' : 'Show Watchlist'}
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        className="rounded-full border border-neutral-700 bg-neutral-900 px-4 py-2 text-sm font-medium text-gray-200 transition hover:border-emerald-400/50 hover:text-white"
+                        onClick={() => void fetchStrategySnapshot()}
+                      >
+                        Refresh
+                      </button>
+                    </div>
                   </div>
 
+                  {!hasActionableStrategies && strategyData && (
+                    <div className="rounded-2xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
+                      No actionable call credit setups passed the current thresholds. Showing the watchlist instead.
+                    </div>
+                  )}
+
                   <CallCreditCandidateList
-                    candidates={strategyData.candidates}
+                    candidates={visibleStrategyCandidates}
                     selectedSymbol={selectedStrategyCandidate?.symbol ?? null}
                     onSelect={(candidate) => setSelectedStrategySymbol(candidate.symbol)}
                   />

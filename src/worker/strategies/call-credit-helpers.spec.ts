@@ -37,6 +37,7 @@ test('selectCallCreditTemplate picks a liquid 10-20 delta short call above resis
   const template = selectCallCreditTemplate({
     spotPrice: 212,
     structureResistance: 226,
+    expiryISO: '2026-03-20',
     options: [
       { strike: 220, delta: 0.28, bid: 2.8, ask: 3.2, openInterest: 1800, volume: 900 },
       { strike: 230, delta: 0.16, bid: 1.2, ask: 1.6, openInterest: 2600, volume: 1400 },
@@ -48,7 +49,9 @@ test('selectCallCreditTemplate picks a liquid 10-20 delta short call above resis
 
   assert.equal(template?.shortStrike, 230);
   assert.equal(template?.longStrike, 235);
-  assert.ok((template?.creditPctWidth ?? 0) >= 0.25);
+  assert.equal(template?.expiryISO, '2026-03-20');
+  assert.equal(template?.creditMid.toFixed(3), '0.775');
+  assert.equal(template?.creditPctWidth.toFixed(3), '0.155');
 });
 
 test('estimateCallDelta falls as calls move further out of the money', () => {

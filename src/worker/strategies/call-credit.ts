@@ -82,12 +82,14 @@ export async function rankCallCreditCandidates(
 
     const macroScore = scoreMacroPressure(input.macro);
     const valueBias = scoreValueBias(symbolInput.valueScore ?? null);
+    const directionalPenalty = scoreDirectionalPenalty(mover.changePercent);
     const dte = symbolInput.dte ?? null;
 
     const spreadTemplate = dte !== null
       ? selectCallCreditTemplate({
         spotPrice: mover.price,
         structureResistance: structure.structureResistance,
+        expiryISO: symbolInput.expiryISO ?? new Date().toISOString().slice(0, 10),
         options: symbolInput.options,
         widthCandidates: [2, 3, 5, 10],
         dte,
@@ -97,6 +99,7 @@ export async function rankCallCreditCandidates(
     const eventTags = buildEventTags(symbolInput);
     const thesis = buildThesis(structure, mover, input.macro, spreadTemplate !== null);
     const watchlistReasons = buildWatchlistReasons({
+      changePercent: mover.changePercent,
       breakdownScore,
       macroScore,
       spreadTemplateExists: spreadTemplate !== null,
@@ -107,6 +110,7 @@ export async function rankCallCreditCandidates(
       + macroScore
       + valueBias
       + (spreadTemplate ? 3 : 0)
+      - directionalPenalty
       - watchlistReasons.length * 0.5,
     );
 
@@ -222,6 +226,7 @@ async function buildLiveSymbolInput(
 
   let optionsBase = initialOptionsData.base;
   let dte = targetExpiration ? diffCalendarDays(targetExpiration) : null;
+  const expiryISO = targetExpiration ? targetExpiration.toISOString().slice(0, 10) : null;
 
   if (targetExpiration && !findOptionChain(optionsBase?.options, targetExpiration)) {
     const targetedOptions = await fetchOptionsData(symbol, {
@@ -240,6 +245,7 @@ async function buildLiveSymbolInput(
     chart: chartBars,
     options: calls,
     dte,
+    expiryISO,
     valueScore: valueScore?.score ?? null,
     sector: valueScore?.sector,
     industry: valueScore?.industry,
@@ -361,6 +367,18 @@ function scoreValueBias(valueScore: number | null): number {
   return 0;
 }
 
+function scoreDirectionalPenalty(changePercent: number): number {
+  if (changePercent >= 0) {
+    return 8;
+  }
+
+  if (changePercent > -3) {
+    return 4;
+  }
+
+  return 0;
+}
+
 function buildEventTags(input: CallCreditSymbolInput): string[] {
   const tags = [...(input.eventTags ?? [])];
 
@@ -393,11 +411,18 @@ function buildThesis(
 }
 
 function buildWatchlistReasons(input: {
+  changePercent: number;
   breakdownScore: number;
   macroScore: number;
   spreadTemplateExists: boolean;
 }): string[] {
   const reasons: string[] = [];
+
+  if (input.changePercent >= 0) {
+    reasons.push('watchlist-only: Session is green, not a confirmed downside breakdown');
+  } else if (input.changePercent > -3) {
+    reasons.push('watchlist-only: Downside move is not deep enough for the call credit playbook');
+  }
 
   if (input.breakdownScore < 18) {
     reasons.push('watchlist-only: Breakdown score is below the actionable threshold');

@@ -40,12 +40,14 @@ export interface EstimateCallDeltaInput {
 export interface SelectCallCreditTemplateInput {
   spotPrice: number;
   structureResistance: number;
+  expiryISO: string;
   options: CallOptionQuote[];
   widthCandidates: number[];
   dte: number;
 }
 
 export interface CallCreditTemplate {
+  expiryISO: string;
   shortStrike: number;
   longStrike: number;
   width: number;
@@ -109,6 +111,7 @@ export interface CallCreditSymbolInput {
   chart: StrategyDailyBar[];
   options: CallOptionQuote[];
   dte?: number | null;
+  expiryISO?: string | null;
   structureResistance?: number;
   valueScore?: number | null;
   sector?: string;

@@ -182,3 +182,70 @@ test('RISK_ON macro penalizes weaker bearish setups', async () => {
   assert.equal(riskOn.candidates[0]?.setupState, 'WATCHLIST');
   assert.ok(riskOn.candidates[0]?.watchlistReasons.some((reason) => reason.includes('Macro regime')));
 });
+
+test('green-session names rank below real breakdown names even if a spread exists', async () => {
+  const base = Array.from({ length: 55 }, (_, index) => {
+    const close = 205 - index * 0.55;
+    return {
+      open: close + 0.8,
+      high: close + 1.5,
+      low: close - 1.2,
+      close,
+      volume: 48_000_000,
+    };
+  });
+
+  const result = await rankCallCreditCandidates({
+    movers: [
+      { symbol: 'TSLA', name: 'Tesla', price: 407.82, changePercent: 2.15, volume: 62_100_000 },
+      { symbol: 'CPB', name: 'Campbell Soup', price: 22.94, changePercent: -7.05, volume: 29_000_000 },
+    ],
+    macro: {
+      overallRegime: 'RISK_OFF',
+      indices: [],
+      dxy: { symbol: 'DX-Y.NYB', price: 104, changePercent: 0.5, trend: 'UP' },
+      vix: { symbol: '^VIX', price: 20, changePercent: 6, status: 'RISING' },
+    },
+    symbolInputs: {
+      TSLA: {
+        chart: createChartSeries([
+          ...base,
+          { open: 404, high: 410, low: 401, close: 407.82, volume: 62_100_000 },
+        ]),
+        options: [
+          { strike: 450, delta: 0.14, bid: 0.05, ask: 0.07, openInterest: 1400, volume: 900 },
+          { strike: 455, delta: 0.1, bid: 0.01, ask: 0.03, openInterest: 1100, volume: 600 },
+        ],
+        dte: 5,
+        structureResistance: 420.34,
+        valueScore: 4.5,
+        sector: 'Consumer Cyclical',
+        earningsDays: 18,
+      },
+      CPB: {
+        chart: createChartSeries([
+          ...base.map((bar, index) => ({
+            ...bar,
+            open: 31 - index * 0.08,
+            high: 31.3 - index * 0.08,
+            low: 30.2 - index * 0.08,
+            close: 30.6 - index * 0.08,
+            volume: 14_000_000,
+          })),
+          { open: 24.6, high: 24.9, low: 22.7, close: 22.94, volume: 29_000_000 },
+        ]),
+        options: [],
+        dte: 5,
+        structureResistance: 27.71,
+        valueScore: 2.2,
+        sector: 'Consumer Defensive',
+        earningsDays: 25,
+      },
+    },
+  });
+
+  assert.equal(result.candidates[0]?.symbol, 'CPB');
+  assert.equal(result.candidates[1]?.symbol, 'TSLA');
+  assert.ok((result.candidates[0]?.score ?? 0) > (result.candidates[1]?.score ?? 0));
+  assert.ok(result.candidates[1]?.watchlistReasons.some((reason) => reason.includes('green')));
+});
