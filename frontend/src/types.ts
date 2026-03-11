@@ -143,3 +143,88 @@ export interface MacroSnapshot {
     vix: MacroTickerSnapshot;
     overallRegime: 'RISK_ON' | 'RISK_OFF' | 'CHOPPY';
 }
+
+export type CreditSpreadStrategyType = 'BEAR_CALL_CREDIT' | 'BULL_PUT_CREDIT';
+export type CreditSpreadDirection = 'BEARISH' | 'BULLISH';
+export type CreditSpreadAnchorType = 'RESISTANCE' | 'SUPPORT';
+export type CreditSpreadSetupState = 'ACTIONABLE' | 'WATCHLIST';
+export type CreditSpreadOptionType = 'CALL' | 'PUT';
+export type CreditSpreadBlocker =
+    | 'MOVE_DIRECTION_CONFLICT'
+    | 'BREAKDOWN_TOO_WEAK'
+    | 'BOUNCE_NOT_CONFIRMED'
+    | 'MACRO_NOT_ALIGNED'
+    | 'NO_LIQUID_TEMPLATE'
+    | 'CREDIT_TOO_THIN'
+    | 'SUPPORT_ALREADY_LOST'
+    | 'RESISTANCE_ALREADY_RECLAIMED';
+
+export interface CreditSpreadTemplate {
+    strategyType: CreditSpreadStrategyType;
+    shortLegType: CreditSpreadOptionType;
+    longLegType: CreditSpreadOptionType;
+    expiryISO: string;
+    shortStrike: number;
+    longStrike: number;
+    width: number;
+    dte: number;
+    shortDelta: number;
+    shortBid: number;
+    shortAsk: number;
+    longBid: number;
+    longAsk: number;
+    shortMid: number;
+    longMid: number;
+    creditMid: number;
+    creditPctWidth: number;
+    takeProfitAt: number;
+    stopLossAt: number;
+}
+
+export interface CreditSpreadCandidate {
+    strategyType: CreditSpreadStrategyType;
+    direction: CreditSpreadDirection;
+    symbol: string;
+    name: string;
+    price: number;
+    changePercent: number;
+    volume: number;
+    score: number;
+    setupState: CreditSpreadSetupState;
+    structureScore: number;
+    macroScore: number;
+    valueBias: number;
+    anchorType: CreditSpreadAnchorType;
+    anchorLevel: number;
+    invalidationPrice: number;
+    volumeRatio20: number;
+    closeLocationValue: number;
+    upperWickRatio: number;
+    lowerWickRatio: number;
+    eventTags: string[];
+    thesis: string[];
+    blockers: CreditSpreadBlocker[];
+    watchlistReasons: string[];
+    spreadTemplate: CreditSpreadTemplate | null;
+    dte: number | null;
+    sector?: string;
+    industry?: string;
+}
+
+export interface CreditSpreadStrategySnapshot {
+    generatedAt: string;
+    strategyType: CreditSpreadStrategyType;
+    macro: MacroSnapshot | null;
+    filters: {
+        minPrice: number;
+        maxPrice: number;
+        minVolume: number;
+        targetDteMin: number;
+        targetDteMax: number;
+    };
+    candidates: CreditSpreadCandidate[];
+}
+
+export type CallCreditTemplate = CreditSpreadTemplate;
+export type CallCreditCandidate = CreditSpreadCandidate;
+export type CallCreditStrategySnapshot = CreditSpreadStrategySnapshot;

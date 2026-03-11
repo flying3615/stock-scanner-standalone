@@ -26,6 +26,8 @@ tags:
     description: Value and options analysis endpoints
   - name: Analytics
     description: Sector trends and macro indicators
+  - name: Strategies
+    description: Ranked strategy setups derived from scanner, options, and macro inputs
   - name: History
     description: Historical scan results
   - name: News
@@ -423,6 +425,155 @@ paths:
                     source: 'FinancialJuice'
         '500':
           description: Failed to load news
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/strategies/credit-spreads:
+    get:
+      tags:
+        - Strategies
+      summary: Get ranked directional credit spread candidates
+      description: |
+        Builds a directional credit spread snapshot by combining market movers,
+        daily chart structure, macro regime, and near-term vertical spread templates.
+        The schema is written for machine readers: downstream AI clients should use
+        `strategyType`, `direction`, `anchorType`, `anchorLevel`, `invalidationPrice`,
+        and `blockers` to reason about the setup instead of inferring intent from UI copy.
+      operationId: getCreditSpreadStrategySnapshot
+      parameters:
+        - in: query
+          name: strategyType
+          required: false
+          description: |
+            Strategy playbook to rank. `BEAR_CALL_CREDIT` targets bearish resistance-fade setups.
+            `BULL_PUT_CREDIT` targets bullish support-hold setups.
+          schema:
+            type: string
+            enum: [BEAR_CALL_CREDIT, BULL_PUT_CREDIT]
+            default: BEAR_CALL_CREDIT
+        - in: query
+          name: setupState
+          required: false
+          description: |
+            Optional server-side execution filter. `ACTIONABLE` means the setup passed
+            structure, macro, and spread-template gates. `WATCHLIST` means the setup is
+            informative but currently blocked.
+          schema:
+            type: string
+            enum: [ACTIONABLE, WATCHLIST]
+        - in: query
+          name: limit
+          required: false
+          description: Maximum number of candidates returned after filtering.
+          schema:
+            type: integer
+            default: 20
+            minimum: 1
+            maximum: 100
+      responses:
+        '200':
+          description: Ranked credit spread strategy snapshot
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreditSpreadStrategySnapshot'
+              example:
+                generatedAt: '2026-03-12T08:10:00.000Z'
+                strategyType: BEAR_CALL_CREDIT
+                macro:
+                  indices: []
+                  dxy:
+                    symbol: DX-Y.NYB
+                    price: 104.0
+                    changePercent: 0.5
+                    trend: UP
+                  vix:
+                    symbol: ^VIX
+                    price: 20.0
+                    changePercent: 6.0
+                    status: RISING
+                  overallRegime: RISK_OFF
+                filters:
+                  minPrice: 20
+                  maxPrice: 500
+                  minVolume: 20000000
+                  targetDteMin: 3
+                  targetDteMax: 7
+                candidates:
+                  - strategyType: BEAR_CALL_CREDIT
+                    direction: BEARISH
+                    symbol: TSLA
+                    name: Tesla
+                    price: 212
+                    changePercent: -8.1
+                    volume: 120000000
+                    score: 35
+                    setupState: ACTIONABLE
+                    structureScore: 28
+                    macroScore: 6
+                    valueBias: 2
+                    anchorType: RESISTANCE
+                    anchorLevel: 226
+                    invalidationPrice: 228.26
+                    volumeRatio20: 2.31
+                    closeLocationValue: 0.09
+                    upperWickRatio: 0.09
+                    lowerWickRatio: 0.09
+                    eventTags: []
+                    thesis:
+                      - Closed below the prior 20-session low
+                      - Options chain offers a liquid call credit spread above resistance
+                    blockers: []
+                    watchlistReasons: []
+                    dte: 5
+                    spreadTemplate:
+                      strategyType: BEAR_CALL_CREDIT
+                      shortLegType: CALL
+                      longLegType: CALL
+                      expiryISO: '2026-03-20'
+                      shortStrike: 230
+                      longStrike: 235
+                      width: 5
+                      dte: 5
+                      shortDelta: 0.16
+                      shortBid: 1.9
+                      shortAsk: 2.2
+                      longBid: 0.45
+                      longAsk: 0.65
+                      shortMid: 2.05
+                      longMid: 0.55
+                      creditMid: 1.5
+                      creditPctWidth: 0.3
+                      takeProfitAt: 0.6
+                      stopLossAt: 3.0
+        '500':
+          description: Failed to build credit spread strategy snapshot
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/strategies/call-credit:
+    get:
+      tags:
+        - Strategies
+      summary: Get ranked call credit spread candidates
+      deprecated: true
+      description: |
+        Legacy alias for `/api/strategies/credit-spreads?strategyType=BEAR_CALL_CREDIT`.
+        New AI and frontend consumers should prefer the unified `credit-spreads` route.
+      operationId: getLegacyCallCreditStrategySnapshot
+      responses:
+        '200':
+          description: Ranked bearish call credit strategy snapshot
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreditSpreadStrategySnapshot'
+        '500':
+          description: Failed to build call credit strategy snapshot
           content:
             application/json:
               schema:
@@ -1004,9 +1155,9 @@ components:
           description: Volatility Index
         overallRegime:
           type: string
-          enum: [bullish, bearish, neutral, mixed]
+          enum: [RISK_ON, RISK_OFF, CHOPPY]
           description: Overall market regime
-          example: bullish
+          example: RISK_OFF
 
     MacroIndex:
       type: object
@@ -1015,7 +1166,7 @@ components:
         symbol:
           type: string
           example: ^GSPC
-        name:
+        label:
           type: string
           example: S&P 500
         price:
@@ -1030,11 +1181,25 @@ components:
           type: number
           format: float
           example: 0.87
+        mfi:
+          type: number
+          format: float
+          example: -0.12
+        score:
+          type: number
+          format: float
+          example: 3
+        regime:
+          type: string
+          example: BEARISH_PULLBACK
 
     MacroTicker:
       type: object
       description: Macro indicator ticker data
       properties:
+        symbol:
+          type: string
+          example: DX-Y.NYB
         price:
           type: number
           format: float
@@ -1047,6 +1212,309 @@ components:
           type: number
           format: float
           example: 0.12
+        trend:
+          type: string
+          nullable: true
+          example: UP
+        status:
+          type: string
+          nullable: true
+          example: RISING
+
+    CreditSpreadStrategyType:
+      type: string
+      description: Strategy playbook identifier for the candidate or template.
+      enum: [BEAR_CALL_CREDIT, BULL_PUT_CREDIT]
+
+    CreditSpreadDirection:
+      type: string
+      description: Normalized directional thesis. Do not infer this from the option leg type alone.
+      enum: [BEARISH, BULLISH]
+
+    CreditSpreadAnchorType:
+      type: string
+      description: |
+        Structural anchor category used to position the short strike outside price structure.
+        `RESISTANCE` means the short leg should sit at or above overhead resistance.
+        `SUPPORT` means the short leg should sit at or below support.
+      enum: [RESISTANCE, SUPPORT]
+
+    CreditSpreadSetupState:
+      type: string
+      description: |
+        Execution readiness, not recommendation strength. `ACTIONABLE` means the setup passed
+        structure, macro, and template gates. `WATCHLIST` means it is still blocked.
+      enum: [ACTIONABLE, WATCHLIST]
+
+    CreditSpreadOptionType:
+      type: string
+      description: Option contract side used by the spread leg.
+      enum: [CALL, PUT]
+
+    CreditSpreadBlocker:
+      type: string
+      description: Machine-readable blocker code explaining why a candidate remains watchlist-only.
+      enum:
+        - MOVE_DIRECTION_CONFLICT
+        - BREAKDOWN_TOO_WEAK
+        - BOUNCE_NOT_CONFIRMED
+        - MACRO_NOT_ALIGNED
+        - NO_LIQUID_TEMPLATE
+        - CREDIT_TOO_THIN
+        - SUPPORT_ALREADY_LOST
+        - RESISTANCE_ALREADY_RECLAIMED
+
+    CreditSpreadTemplate:
+      type: object
+      description: |
+        Suggested 3-7 DTE vertical credit spread template. This is a structured setup proposal,
+        not an execution command. `creditPctWidth` is defined as `creditMid / width`.
+      properties:
+        strategyType:
+          $ref: '#/components/schemas/CreditSpreadStrategyType'
+        shortLegType:
+          allOf:
+            - $ref: '#/components/schemas/CreditSpreadOptionType'
+          description: Option type of the short leg. Bear call uses CALL. Bull put uses PUT.
+        longLegType:
+          allOf:
+            - $ref: '#/components/schemas/CreditSpreadOptionType'
+          description: Option type of the long hedge leg. Matches the short leg for vertical spreads.
+        expiryISO:
+          type: string
+          format: date
+          description: Exact expiration date associated with this spread template.
+          example: '2026-03-20'
+        shortStrike:
+          type: number
+          format: float
+          example: 230
+        longStrike:
+          type: number
+          format: float
+          example: 235
+        width:
+          type: number
+          format: float
+          example: 5
+        dte:
+          type: integer
+          description: Days to expiration for the selected expiryISO.
+          example: 5
+        shortDelta:
+          type: number
+          format: float
+          description: Absolute delta of the short leg, used for template selection.
+          example: 0.16
+        shortBid:
+          type: number
+          format: float
+          example: 1.9
+        shortAsk:
+          type: number
+          format: float
+          example: 2.2
+        longBid:
+          type: number
+          format: float
+          example: 0.45
+        longAsk:
+          type: number
+          format: float
+          example: 0.65
+        shortMid:
+          type: number
+          format: float
+          example: 2.05
+        longMid:
+          type: number
+          format: float
+          example: 0.55
+        creditMid:
+          type: number
+          format: float
+          description: Estimated net credit using mid prices for the short and long legs.
+          example: 1.5
+        creditPctWidth:
+          type: number
+          format: float
+          description: Net credit divided by spread width (`creditMid / width`). This is not annualized yield.
+          example: 0.3
+        takeProfitAt:
+          type: number
+          format: float
+          description: Suggested debit value where the seller may take profits, derived from a credit multiple rule.
+          example: 0.6
+        stopLossAt:
+          type: number
+          format: float
+          description: Suggested debit value where the seller may stop out, derived from a credit multiple rule.
+          example: 3.0
+
+    CreditSpreadCandidate:
+      type: object
+      description: |
+        Ranked directional credit spread candidate. `score` is a ranking heuristic used to order candidates,
+        not a win rate or probability of profit.
+      properties:
+        strategyType:
+          $ref: '#/components/schemas/CreditSpreadStrategyType'
+        direction:
+          $ref: '#/components/schemas/CreditSpreadDirection'
+        symbol:
+          type: string
+          example: TSLA
+        name:
+          type: string
+          example: Tesla
+        price:
+          type: number
+          format: float
+          example: 212
+        changePercent:
+          type: number
+          format: float
+          example: -8.1
+        volume:
+          type: integer
+          example: 120000000
+        score:
+          type: number
+          format: float
+          description: Internal ranking score for ordering candidates. Higher is better within the same strategyType.
+          example: 35
+        setupState:
+          $ref: '#/components/schemas/CreditSpreadSetupState'
+        structureScore:
+          type: number
+          format: float
+          description: Strategy-specific chart-structure score. Bear call uses breakdown logic; bull put uses support-hold logic.
+          example: 28
+        macroScore:
+          type: number
+          format: float
+          description: Macro alignment contribution. Positive supports the strategy, negative works against it.
+          example: 6
+        valueBias:
+          type: number
+          format: float
+          description: Optional valuation bias contribution used as a secondary ranking input.
+          example: 2
+        anchorType:
+          $ref: '#/components/schemas/CreditSpreadAnchorType'
+        anchorLevel:
+          type: number
+          format: float
+          description: |
+            Structural anchor used to position the short strike outside price structure.
+            This is not an entry price. Bear call treats it as resistance; bull put treats it as support.
+          example: 226
+        invalidationPrice:
+          type: number
+          format: float
+          description: |
+            Thesis-break price. If spot price reclaims or loses this buffered level, the setup thesis is considered invalid.
+            It is typically near anchorLevel but not necessarily equal to it.
+          example: 228.26
+        volumeRatio20:
+          type: number
+          format: float
+          example: 2.31
+        closeLocationValue:
+          type: number
+          format: float
+          description: Close location inside the daily range, normalized to 0-1.
+          example: 0.09
+        upperWickRatio:
+          type: number
+          format: float
+          description: Upper wick size normalized by the full daily range.
+          example: 0.09
+        lowerWickRatio:
+          type: number
+          format: float
+          description: Lower wick size normalized by the full daily range.
+          example: 0.09
+        eventTags:
+          type: array
+          items:
+            type: string
+          description: Raw event labels carried through from upstream data or heuristics.
+        thesis:
+          type: array
+          items:
+            type: string
+          description: Human-readable rationale points summarizing why the candidate ranks.
+        blockers:
+          type: array
+          description: Machine-readable blocker codes. Empty means the setup is actionable.
+          items:
+            $ref: '#/components/schemas/CreditSpreadBlocker'
+        watchlistReasons:
+          type: array
+          items:
+            type: string
+          description: Human-readable explanation of the blocker set for UI display.
+        dte:
+          type: integer
+          nullable: true
+          description: Selected days to expiration window used for template construction.
+          example: 5
+        sector:
+          type: string
+          nullable: true
+          example: Consumer Cyclical
+        industry:
+          type: string
+          nullable: true
+          example: Auto Manufacturers
+        spreadTemplate:
+          allOf:
+            - $ref: '#/components/schemas/CreditSpreadTemplate'
+          nullable: true
+          description: Null when no liquid template survives anchor, delta, or liquidity gates.
+
+    CreditSpreadStrategyFilters:
+      type: object
+      properties:
+        minPrice:
+          type: number
+          format: float
+          example: 20
+        maxPrice:
+          type: number
+          format: float
+          example: 500
+        minVolume:
+          type: integer
+          example: 20000000
+        targetDteMin:
+          type: integer
+          example: 3
+        targetDteMax:
+          type: integer
+          example: 7
+
+    CreditSpreadStrategySnapshot:
+      type: object
+      description: Ranked directional credit spread strategy payload.
+      properties:
+        generatedAt:
+          type: string
+          format: date-time
+          example: '2026-03-12T08:10:00.000Z'
+        strategyType:
+          $ref: '#/components/schemas/CreditSpreadStrategyType'
+        macro:
+          allOf:
+            - $ref: '#/components/schemas/MacroSnapshot'
+          nullable: true
+        filters:
+          $ref: '#/components/schemas/CreditSpreadStrategyFilters'
+        candidates:
+          type: array
+          items:
+            $ref: '#/components/schemas/CreditSpreadCandidate'
 
     NewsItem:
       type: object

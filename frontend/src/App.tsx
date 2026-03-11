@@ -1,12 +1,30 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { Search } from 'lucide-react';
 import axios from 'axios';
-import type { Stock, OptionSignal, StockSnapshot, MacroSnapshot, NewsItem } from './types';
+import './App.css';
+import type {
+  CreditSpreadStrategySnapshot,
+  CreditSpreadStrategyType,
+  Stock,
+  OptionSignal,
+  StockSnapshot,
+  MacroSnapshot,
+  NewsItem,
+} from './types';
 import { StockDetailModal } from './components/StockDetailModal';
 import { MoneyFlowGauge } from './components/MoneyFlowGauge';
 import { SectorStats } from './components/SectorStats';
 import { SectorTrendRadar } from './components/SectorTrendRadar';
+import { StrategyMacroBar } from './components/StrategyMacroBar';
+import { CallCreditCandidateList } from './components/CallCreditCandidateList';
+import { CallCreditDetailPanel } from './components/CallCreditDetailPanel';
 import { getSectorColorClass } from './utils/sectorColors';
+import {
+  getCreditSpreadStrategyLabel,
+  getDefaultSelectedCreditSpreadSymbol,
+  getVisibleCreditSpreadCandidates,
+  hasActionableCreditSpreadCandidates,
+} from './utils/callCredit';
 
 // API Base URL
 const rawBase = (import.meta.env.VITE_API_BASE ?? '').replace(/\/$/, '');
@@ -28,7 +46,7 @@ interface FinancialJuiceTokenStatus {
 
 function App() {
   const [moversType, setMoversType] = useState<'active' | 'gainers' | 'losers'>('active');
-  const [dashboardView, setDashboardView] = useState<'scanner' | 'radar'>('scanner');
+  const [dashboardView, setDashboardView] = useState<'scanner' | 'radar' | 'strategies'>('scanner');
   const [movers, setMovers] = useState<Stock[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedStock, setSelectedStock] = useState<Stock | null>(null);
@@ -36,6 +54,12 @@ function App() {
   const [optionsLoading, setOptionsLoading] = useState(false);
   const [macroData, setMacroData] = useState<MacroSnapshot | null>(null);
   const [macroLoading, setMacroLoading] = useState(false);
+  const [strategyData, setStrategyData] = useState<CreditSpreadStrategySnapshot | null>(null);
+  const [strategyLoading, setStrategyLoading] = useState(false);
+  const [strategyError, setStrategyError] = useState<string | null>(null);
+  const [selectedStrategyType, setSelectedStrategyType] = useState<CreditSpreadStrategyType>('BEAR_CALL_CREDIT');
+  const [selectedStrategySymbol, setSelectedStrategySymbol] = useState<string | null>(null);
+  const [showStrategyWatchlist, setShowStrategyWatchlist] = useState(false);
 
   // History State
   const [viewMode, setViewMode] = useState<'analysis' | 'history'>('analysis');
@@ -105,6 +129,12 @@ function App() {
     fetchNewsTokenStatus();
   }, []);
 
+  useEffect(() => {
+    if (dashboardView === 'strategies' && !strategyLoading && (!strategyData || strategyData.strategyType !== selectedStrategyType)) {
+      void fetchStrategySnapshot(selectedStrategyType);
+    }
+  }, [dashboardView, selectedStrategyType, strategyData, strategyLoading]);
+
   const fetchMovers = async () => {
     setLoading(true);
     try {
@@ -141,6 +171,25 @@ function App() {
       setNewsTokenStatus(null);
     } finally {
       setNewsTokenLoading(false);
+    }
+  };
+
+  const fetchStrategySnapshot = async (strategyType = selectedStrategyType) => {
+    setStrategyLoading(true);
+    setStrategyError(null);
+    try {
+      const { data } = await axios.get<CreditSpreadStrategySnapshot>(`${API_URL}/strategies/credit-spreads`, {
+        params: { strategyType }
+      });
+      setStrategyData(data);
+      setShowStrategyWatchlist(false);
+      setSelectedStrategySymbol(getDefaultSelectedCreditSpreadSymbol(data.candidates, false));
+    } catch (err) {
+      console.error('[Strategies] Failed to load credit spread snapshot', err);
+      setStrategyData(null);
+      setStrategyError('Failed to load credit spread strategy snapshot.');
+    } finally {
+      setStrategyLoading(false);
     }
   };
 
@@ -234,9 +283,18 @@ function App() {
     })();
   };
 
+  const visibleStrategyCandidates = strategyData
+    ? getVisibleCreditSpreadCandidates(strategyData.candidates, showStrategyWatchlist)
+    : [];
+  const hasActionableStrategies = hasActionableCreditSpreadCandidates(strategyData?.candidates ?? []);
+  const selectedStrategyCandidate =
+    visibleStrategyCandidates.find((candidate) => candidate.symbol === selectedStrategySymbol)
+    ?? visibleStrategyCandidates[0]
+    ?? null;
+
   return (
     <div className="min-h-screen w-full bg-neutral-900 text-gray-100 font-sans p-6">
-      {macroData && (
+      {dashboardView !== 'strategies' && macroData && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4 text-sm">
           <div id="macro-dxy" className="bg-neutral-800/60 border border-neutral-700/40 rounded-xl p-4 flex items-center justify-between">
             <div>
@@ -303,22 +361,30 @@ function App() {
             >
               Market Radar 📡
             </button>
+            <button
+              onClick={() => setDashboardView('strategies')}
+              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${dashboardView === 'strategies' ? 'bg-neutral-700 text-white shadow' : 'text-gray-400 hover:text-white'}`}
+            >
+              Strategies
+            </button>
           </div>
 
-          <div className="flex gap-2">
-            {(['active', 'gainers', 'losers'] as const).map(type => (
-              <button
-                key={type}
-                onClick={() => setMoversType(type)}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${moversType === type
-                  ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20'
-                  : 'bg-neutral-800 text-gray-400 hover:bg-neutral-700'
-                  }`}
-              >
-                {type.charAt(0).toUpperCase() + type.slice(1)}
-              </button>
-            ))}
-          </div>
+          {dashboardView === 'scanner' && (
+            <div className="flex gap-2">
+              {(['active', 'gainers', 'losers'] as const).map(type => (
+                <button
+                  key={type}
+                  onClick={() => setMoversType(type)}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${moversType === type
+                    ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20'
+                    : 'bg-neutral-800 text-gray-400 hover:bg-neutral-700'
+                    }`}
+                >
+                  {type.charAt(0).toUpperCase() + type.slice(1)}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </header>
 
@@ -379,7 +445,140 @@ function App() {
       </section>
 
       {/* Main Content */}
-      {dashboardView === 'radar' ? (
+      {dashboardView === 'strategies' ? (
+        <div className="space-y-6 animate-in fade-in duration-500">
+          {strategyLoading ? (
+            <div className="flex justify-center items-center h-64">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-400"></div>
+            </div>
+          ) : strategyError ? (
+            <div className="rounded-[28px] border border-red-500/30 bg-red-950/30 p-6">
+              <h2 className="text-xl font-semibold text-white">Credit Spread Strategy Unavailable</h2>
+              <p className="mt-2 text-sm text-red-100/80">{strategyError}</p>
+              <button
+                type="button"
+                className="mt-4 rounded-full bg-white px-4 py-2 text-sm font-medium text-neutral-900 transition hover:bg-emerald-200"
+                onClick={() => void fetchStrategySnapshot(selectedStrategyType)}
+              >
+                Retry Snapshot
+              </button>
+            </div>
+          ) : strategyData ? (
+            <>
+              <StrategyMacroBar snapshot={strategyData} />
+              <div className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
+                <div className="space-y-4">
+                  <div className="flex items-end justify-between gap-4">
+                    <div>
+                      <h2 className="text-xl font-semibold text-white">{getCreditSpreadStrategyLabel(selectedStrategyType)} Candidates</h2>
+                      <p className="mt-1 text-sm text-gray-400">
+                        {hasActionableStrategies && !showStrategyWatchlist
+                          ? 'Showing only actionable setups by default. Expand the watchlist if you want borderline names.'
+                          : selectedStrategyType === 'BEAR_CALL_CREDIT'
+                            ? 'Short-term bearish breakdowns ranked by structure, macro pressure, and available spread quality.'
+                            : 'Support-holding rebound setups ranked by structure, macro alignment, and available spread quality.'}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="flex rounded-full border border-neutral-700 bg-neutral-900 p-1">
+                        {(['BEAR_CALL_CREDIT', 'BULL_PUT_CREDIT'] as const).map((strategyType) => (
+                          <button
+                            key={strategyType}
+                            type="button"
+                            className={`rounded-full px-3 py-1.5 text-sm font-medium transition ${
+                              selectedStrategyType === strategyType
+                                ? strategyType === 'BEAR_CALL_CREDIT'
+                                  ? 'bg-red-500/15 text-red-200'
+                                  : 'bg-emerald-500/15 text-emerald-200'
+                                : 'text-gray-400 hover:text-white'
+                            }`}
+                            onClick={() => {
+                              setSelectedStrategyType(strategyType);
+                              setStrategyData(null);
+                              setSelectedStrategySymbol(null);
+                              setShowStrategyWatchlist(false);
+                            }}
+                          >
+                            {strategyType === 'BEAR_CALL_CREDIT' ? 'Bear Call' : 'Bull Put'}
+                          </button>
+                        ))}
+                      </div>
+                      {hasActionableStrategies && (
+                        <button
+                          type="button"
+                          className={`rounded-full border px-4 py-2 text-sm font-medium transition ${
+                            showStrategyWatchlist
+                              ? 'border-amber-400/40 bg-amber-500/10 text-amber-200 hover:border-amber-300/60'
+                              : 'border-neutral-700 bg-neutral-900 text-gray-200 hover:border-emerald-400/50 hover:text-white'
+                          }`}
+                          onClick={() => {
+                            const nextShowWatchlist = !showStrategyWatchlist;
+                            setShowStrategyWatchlist(nextShowWatchlist);
+                            if (strategyData) {
+                              setSelectedStrategySymbol(
+                                getDefaultSelectedCreditSpreadSymbol(strategyData.candidates, nextShowWatchlist),
+                              );
+                            }
+                          }}
+                        >
+                          {showStrategyWatchlist ? 'Actionable Only' : 'Show Watchlist'}
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        className="rounded-full border border-neutral-700 bg-neutral-900 px-4 py-2 text-sm font-medium text-gray-200 transition hover:border-emerald-400/50 hover:text-white"
+                        onClick={() => void fetchStrategySnapshot(selectedStrategyType)}
+                      >
+                        Refresh
+                      </button>
+                    </div>
+                  </div>
+
+                  {!hasActionableStrategies && strategyData && (
+                    <div className="rounded-2xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
+                      No actionable {getCreditSpreadStrategyLabel(selectedStrategyType).toLowerCase()} setups passed the current thresholds. Showing the watchlist instead.
+                    </div>
+                  )}
+
+                  <CallCreditCandidateList
+                    candidates={visibleStrategyCandidates}
+                    selectedSymbol={selectedStrategyCandidate?.symbol ?? null}
+                    onSelect={(candidate) => setSelectedStrategySymbol(candidate.symbol)}
+                  />
+                </div>
+
+                <div className="space-y-4">
+                  <CallCreditDetailPanel candidate={selectedStrategyCandidate} />
+
+                  <section className="rounded-[28px] border border-neutral-700 bg-neutral-900/85 p-6">
+                    <div className="text-[11px] uppercase tracking-[0.24em] text-gray-500">Risk Checklist</div>
+                    <div className="mt-4 grid gap-3 md:grid-cols-2">
+                      <div className="rounded-2xl bg-black/20 p-4 text-sm text-gray-300">
+                        Only engage `ACTIONABLE` setups when the spread stays above your minimum credit threshold and open interest remains liquid.
+                      </div>
+                      <div className="rounded-2xl bg-black/20 p-4 text-sm text-gray-300">
+                        Avoid forcing entries into earnings windows or sudden headline reversals, even if the score stays high.
+                      </div>
+                      <div className="rounded-2xl bg-black/20 p-4 text-sm text-gray-300">
+                        Use the invalidation price as a chart-based line in the sand, not just the option P/L stop.
+                      </div>
+                      <div className="rounded-2xl bg-black/20 p-4 text-sm text-gray-300">
+                        {selectedStrategyType === 'BEAR_CALL_CREDIT'
+                          ? 'Re-rank before entry if DXY and VIX both soften, because the macro tailwind for bearish premium-selling may be gone.'
+                          : 'Re-rank before entry if DXY turns higher and VIX re-accelerates, because the macro tailwind for bullish premium-selling may be gone.'}
+                      </div>
+                    </div>
+                  </section>
+                </div>
+              </div>
+            </>
+          ) : (
+            <div className="rounded-[28px] border border-dashed border-neutral-700 bg-neutral-900/70 p-6 text-sm text-gray-400">
+              No strategy snapshot is available yet.
+            </div>
+          )}
+        </div>
+      ) : dashboardView === 'radar' ? (
         <div className="animate-in fade-in duration-500">
           <h2 className="text-xl font-bold mb-4 text-gray-300">Strategy: Sector Rotation & Momentum</h2>
           <SectorTrendRadar apiUrl={API_URL} />
