@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { rankCallCreditCandidates } from './call-credit.js';
+import { getCallCreditStrategySnapshot, rankCallCreditCandidates } from './call-credit.js';
 
 function createChartSeries(values: Array<{ open: number; high: number; low: number; close: number; volume: number }>) {
   return values.map((value, index) => ({
@@ -85,4 +85,100 @@ test('rankCallCreditCandidates returns actionable setups ahead of watchlist name
   assert.equal(result.candidates[0]?.spreadTemplate?.shortStrike, 230);
   assert.equal(result.candidates[1]?.symbol, 'AAPL');
   assert.equal(result.candidates[1]?.setupState, 'WATCHLIST');
+});
+
+test('getCallCreditStrategySnapshot falls back to null macro and keeps missing spreads on the watchlist', async () => {
+  const base = Array.from({ length: 55 }, (_, index) => {
+    const close = 88 - index * 0.25;
+    return {
+      open: close + 0.6,
+      high: close + 1,
+      low: close - 0.8,
+      close,
+      volume: 28_000_000,
+    };
+  });
+
+  const snapshot = await getCallCreditStrategySnapshot({
+    activeLimit: 1,
+    loserLimit: 0,
+    loaders: {
+      fetchMovers: async () => [
+        { symbol: 'XYZ', name: 'Example Co', price: 72, changePercent: -3.4, volume: 28_000_000 },
+      ],
+      fetchMacro: async () => {
+        throw new Error('macro unavailable');
+      },
+      buildSymbolInput: async () => ({
+        chart: createChartSeries([
+          ...base,
+          { open: 75, high: 75.8, low: 71.8, close: 72, volume: 28_000_000 },
+        ]),
+        options: [],
+        dte: 5,
+        structureResistance: 76,
+        valueScore: 3.2,
+        sector: 'Industrials',
+        earningsDays: 14,
+      }),
+    },
+  });
+
+  assert.equal(snapshot.macro, null);
+  assert.equal(snapshot.candidates[0]?.setupState, 'WATCHLIST');
+  assert.ok(snapshot.candidates[0]?.watchlistReasons.some((reason) => reason.includes('No liquid 3-7 DTE call spread')));
+});
+
+test('RISK_ON macro penalizes weaker bearish setups', async () => {
+  const base = Array.from({ length: 55 }, (_, index) => {
+    const close = 145 - index * 0.32;
+    return {
+      open: close + 0.8,
+      high: close + 1.4,
+      low: close - 1.1,
+      close,
+      volume: 32_000_000,
+    };
+  });
+
+  const symbolInputs = {
+    NFLX: {
+      chart: createChartSeries([
+        ...base,
+        { open: 130.8, high: 131.2, low: 126.4, close: 127.1, volume: 36_000_000 },
+      ]),
+      options: [],
+      dte: 5,
+      structureResistance: 132,
+      valueScore: 3.3,
+      sector: 'Communication Services',
+      earningsDays: 21,
+    },
+  };
+
+  const riskOff = await rankCallCreditCandidates({
+    movers: [{ symbol: 'NFLX', name: 'Netflix', price: 127.1, changePercent: -3.8, volume: 36_000_000 }],
+    macro: {
+      overallRegime: 'RISK_OFF',
+      indices: [],
+      dxy: { symbol: 'DX-Y.NYB', price: 104, changePercent: 0.4, trend: 'UP' },
+      vix: { symbol: '^VIX', price: 18, changePercent: 2.1, status: 'RISING' },
+    },
+    symbolInputs,
+  });
+
+  const riskOn = await rankCallCreditCandidates({
+    movers: [{ symbol: 'NFLX', name: 'Netflix', price: 127.1, changePercent: -3.8, volume: 36_000_000 }],
+    macro: {
+      overallRegime: 'RISK_ON',
+      indices: [],
+      dxy: { symbol: 'DX-Y.NYB', price: 102, changePercent: -0.4, trend: 'DOWN' },
+      vix: { symbol: '^VIX', price: 14, changePercent: -3.1, status: 'FALLING' },
+    },
+    symbolInputs,
+  });
+
+  assert.ok((riskOff.candidates[0]?.score ?? 0) > (riskOn.candidates[0]?.score ?? 0));
+  assert.equal(riskOn.candidates[0]?.setupState, 'WATCHLIST');
+  assert.ok(riskOn.candidates[0]?.watchlistReasons.some((reason) => reason.includes('Macro regime')));
 });

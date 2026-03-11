@@ -35,6 +35,19 @@ export interface RankCallCreditCandidatesInput {
   generatedAt?: Date | string;
 }
 
+export interface CallCreditSnapshotLoaders {
+  fetchMovers?: (type: 'active' | 'losers', limit: number) => Promise<MarketMover[]>;
+  fetchMacro?: () => Promise<MacroSnapshot>;
+  buildSymbolInput?: (
+    symbol: string,
+    options: {
+      filters: CallCreditStrategyFilters;
+      polygonApiKey?: string;
+      mover: MarketMover;
+    },
+  ) => Promise<CallCreditSymbolInput>;
+}
+
 export async function rankCallCreditCandidates(
   input: RankCallCreditCandidatesInput,
 ): Promise<CallCreditStrategySnapshot> {
@@ -138,12 +151,15 @@ export async function getCallCreditStrategySnapshot(options?: {
   loserLimit?: number;
   filters?: Partial<CallCreditStrategyFilters>;
   polygonApiKey?: string;
+  loaders?: CallCreditSnapshotLoaders;
 }): Promise<CallCreditStrategySnapshot> {
   const filters = { ...DEFAULT_CALL_CREDIT_FILTERS, ...options?.filters };
+  const fetchMovers = options?.loaders?.fetchMovers ?? ((type: 'active' | 'losers', limit: number) => fetchMarketMovers(type, limit));
+  const buildSymbolInput = options?.loaders?.buildSymbolInput ?? buildLiveSymbolInput;
   const [mostActives, dayLosers, macro] = await Promise.all([
-    fetchMarketMovers('active', options?.activeLimit ?? 15),
-    fetchMarketMovers('losers', options?.loserLimit ?? 15),
-    getMacroSnapshot(),
+    fetchMovers('active', options?.activeLimit ?? 15),
+    fetchMovers('losers', options?.loserLimit ?? 15),
+    loadMacroSnapshot(options?.loaders?.fetchMacro),
   ]);
 
   const mergedMovers = mergeMovers([...mostActives, ...dayLosers]);
@@ -154,9 +170,10 @@ export async function getCallCreditStrategySnapshot(options?: {
   const entries = await Promise.all(
     eligibleMovers.map(async (mover) => {
       try {
-        const symbolInput = await buildLiveSymbolInput(mover.symbol, {
+        const symbolInput = await buildSymbolInput(mover.symbol, {
           filters,
           polygonApiKey: options?.polygonApiKey ?? process.env.POLYGON_API_KEY,
+          mover,
         });
         return [mover.symbol, symbolInput] as const;
       } catch (error) {
@@ -182,6 +199,7 @@ async function buildLiveSymbolInput(
   options: {
     filters: CallCreditStrategyFilters;
     polygonApiKey?: string;
+    mover: MarketMover;
   },
 ): Promise<CallCreditSymbolInput> {
   const endDate = new Date();
@@ -227,6 +245,16 @@ async function buildLiveSymbolInput(
     industry: valueScore?.industry,
     earningsDays,
   };
+}
+
+async function loadMacroSnapshot(fetchMacro?: () => Promise<MacroSnapshot>): Promise<MacroSnapshot | null> {
+  try {
+    return await (fetchMacro ?? getMacroSnapshot)();
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.warn(`[call-credit] Macro snapshot unavailable, continuing with null macro: ${message}`);
+    return null;
+  }
 }
 
 function normalizeGeneratedAt(value?: Date | string): string {
@@ -372,15 +400,15 @@ function buildWatchlistReasons(input: {
   const reasons: string[] = [];
 
   if (input.breakdownScore < 18) {
-    reasons.push('Breakdown score is below the actionable threshold');
+    reasons.push('watchlist-only: Breakdown score is below the actionable threshold');
   }
 
   if (input.macroScore < 0) {
-    reasons.push('Macro regime does not currently favor bearish call credit setups');
+    reasons.push('watchlist-only: Macro regime does not currently favor bearish call credit setups');
   }
 
   if (!input.spreadTemplateExists) {
-    reasons.push('No liquid 3-7 DTE call spread was found above resistance');
+    reasons.push('watchlist-only: No liquid 3-7 DTE call spread was found above resistance');
   }
 
   return reasons;

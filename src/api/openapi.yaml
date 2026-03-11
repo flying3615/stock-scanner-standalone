@@ -1088,9 +1088,9 @@ components:
           description: Volatility Index
         overallRegime:
           type: string
-          enum: [bullish, bearish, neutral, mixed]
+          enum: [RISK_ON, RISK_OFF, CHOPPY]
           description: Overall market regime
-          example: bullish
+          example: RISK_OFF
 
     MacroIndex:
       type: object
@@ -1099,7 +1099,7 @@ components:
         symbol:
           type: string
           example: ^GSPC
-        name:
+        label:
           type: string
           example: S&P 500
         price:
@@ -1114,6 +1114,17 @@ components:
           type: number
           format: float
           example: 0.87
+        mfi:
+          type: number
+          format: float
+          example: -0.12
+        score:
+          type: number
+          format: float
+          example: 3
+        regime:
+          type: string
+          example: BEARISH_PULLBACK
 
     MacroTicker:
       type: object
@@ -1235,6 +1246,7 @@ components:
         setupState:
           type: string
           enum: [ACTIONABLE, WATCHLIST]
+          description: ACTIONABLE means structure, macro, and spread template all qualify; WATCHLIST means the idea is informative but not yet executable.
           example: ACTIONABLE
         breakdownScore:
           type: number
@@ -1280,6 +1292,7 @@ components:
           type: array
           items:
             type: string
+          description: Explicit reasons explaining why a candidate remains watchlist-only.
         dte:
           type: integer
           nullable: true
@@ -1296,6 +1309,7 @@ components:
           allOf:
             - $ref: '#/components/schemas/CallCreditTemplate'
           nullable: true
+          description: Null when no liquid 3-7 DTE template is available above resistance.
 
     CallCreditStrategyFilters:
       type: object
