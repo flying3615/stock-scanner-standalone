@@ -143,3 +143,59 @@ export interface MacroSnapshot {
     vix: MacroTickerSnapshot;
     overallRegime: 'RISK_ON' | 'RISK_OFF' | 'CHOPPY';
 }
+
+export interface CallCreditTemplate {
+    shortStrike: number;
+    longStrike: number;
+    width: number;
+    dte: number;
+    shortDelta: number;
+    shortBid: number;
+    shortAsk: number;
+    longBid: number;
+    longAsk: number;
+    shortMid: number;
+    longMid: number;
+    creditMid: number;
+    creditPctWidth: number;
+    takeProfitAt: number;
+    stopLossAt: number;
+}
+
+export interface CallCreditCandidate {
+    symbol: string;
+    name: string;
+    price: number;
+    changePercent: number;
+    volume: number;
+    score: number;
+    setupState: 'ACTIONABLE' | 'WATCHLIST';
+    breakdownScore: number;
+    macroScore: number;
+    valueBias: number;
+    structureResistance: number;
+    invalidationPrice: number;
+    volumeRatio20: number;
+    closeLocationValue: number;
+    upperWickRatio: number;
+    eventTags: string[];
+    thesis: string[];
+    watchlistReasons: string[];
+    spreadTemplate: CallCreditTemplate | null;
+    dte: number | null;
+    sector?: string;
+    industry?: string;
+}
+
+export interface CallCreditStrategySnapshot {
+    generatedAt: string;
+    macro: MacroSnapshot | null;
+    filters: {
+        minPrice: number;
+        maxPrice: number;
+        minVolume: number;
+        targetDteMin: number;
+        targetDteMax: number;
+    };
+    candidates: CallCreditCandidate[];
+}
