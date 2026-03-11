@@ -38,13 +38,6 @@ export function setupOpenAPI(app: Express): void {
       }
     };
 
-    // Serve Swagger UI at /api-docs
-    app.use(
-      '/api-docs',
-      swaggerUi.serve,
-      swaggerUi.setup(openapiSpec, swaggerUiOptions)
-    );
-
     // Serve OpenAPI spec as JSON
     app.get('/api-docs/openapi.json', (_req, res) => {
       res.setHeader('Content-Type', 'application/json');
@@ -56,6 +49,13 @@ export function setupOpenAPI(app: Express): void {
       res.setHeader('Content-Type', 'text/yaml');
       res.send(openapiYaml);
     });
+
+    // Serve Swagger UI at /api-docs after the raw spec routes so they are not shadowed.
+    app.use(
+      '/api-docs',
+      swaggerUi.serve,
+      swaggerUi.setup(openapiSpec, swaggerUiOptions)
+    );
 
     console.log('[OpenAPI] Documentation available at /api-docs');
     console.log('[OpenAPI] JSON spec available at /api-docs/openapi.json');

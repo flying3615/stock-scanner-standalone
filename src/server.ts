@@ -9,7 +9,7 @@ import { scanSymbolOptions } from './worker/options/options.js';
 import { saveScanResult, getHistory } from './db/persistence.js';
 import { initScheduler } from './scheduler.js';
 import { getMacroSnapshot } from './worker/macro/macro-monitor.js';
-import { getCallCreditStrategySnapshot } from './worker/strategies/call-credit.js';
+import { getCallCreditStrategySnapshot, getCreditSpreadStrategySnapshot } from './worker/strategies/call-credit.js';
 import { setupOpenAPI } from './api/openapi-setup.js';
 import {
     buildTokenStatus,
@@ -24,6 +24,7 @@ import { setTimeout } from 'timers/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import NodeCache from 'node-cache';
+import type { CreditSpreadCandidate, CreditSpreadStrategySnapshot, CreditSpreadStrategyType } from './worker/strategies/call-credit-types.js';
 
 dotenv.config();
 
@@ -211,7 +212,7 @@ app.get('/api/macro', async (_req, res) => {
 
 // Call Credit Strategy Endpoint
 app.get('/api/strategies/call-credit', async (_req, res) => {
-    const cacheKey = 'strategy_call_credit';
+    const cacheKey = 'strategy_credit_spreads_BEAR_CALL_CREDIT';
     const cached = cache.get(cacheKey);
     if (cached) {
         return res.json(cached);
@@ -224,6 +225,26 @@ app.get('/api/strategies/call-credit', async (_req, res) => {
     } catch (error) {
         console.error('[API] Failed to build call credit strategy snapshot', error);
         res.status(500).json({ error: 'Failed to build call credit strategy snapshot' });
+    }
+});
+
+app.get('/api/strategies/credit-spreads', async (req, res) => {
+    const strategyType = parseStrategyType(req.query.strategyType as string | undefined);
+    const setupState = parseSetupState(req.query.setupState as string | undefined);
+    const limit = parsePositiveLimit(req.query.limit as string | undefined, 20, 100);
+    const cacheKey = `strategy_credit_spreads_${strategyType}`;
+
+    try {
+        let snapshot = cache.get<CreditSpreadStrategySnapshot>(cacheKey);
+        if (!snapshot) {
+            snapshot = await getCreditSpreadStrategySnapshot({ strategyType });
+            cache.set(cacheKey, snapshot, 300);
+        }
+
+        res.json(filterStrategySnapshot(snapshot, { setupState, limit }));
+    } catch (error) {
+        console.error('[API] Failed to build credit spread strategy snapshot', error);
+        res.status(500).json({ error: 'Failed to build credit spread strategy snapshot' });
     }
 });
 
@@ -363,6 +384,33 @@ function parsePositiveNumber(raw: unknown, fallback: number): number {
         }
     }
     return fallback;
+}
+
+function parseStrategyType(raw?: string): CreditSpreadStrategyType {
+    return raw === 'BULL_PUT_CREDIT' ? 'BULL_PUT_CREDIT' : 'BEAR_CALL_CREDIT';
+}
+
+function parseSetupState(raw?: string): CreditSpreadCandidate['setupState'] | undefined {
+    if (raw === 'ACTIONABLE' || raw === 'WATCHLIST') {
+        return raw;
+    }
+
+    return undefined;
+}
+
+function filterStrategySnapshot(
+    snapshot: CreditSpreadStrategySnapshot,
+    options: {
+        setupState?: CreditSpreadCandidate['setupState'];
+        limit: number;
+    },
+): CreditSpreadStrategySnapshot {
+    return {
+        ...snapshot,
+        candidates: snapshot.candidates
+            .filter((candidate) => !options.setupState || candidate.setupState === options.setupState)
+            .slice(0, options.limit),
+    };
 }
 
 // Serve Frontend Static Files (Production/Docker)

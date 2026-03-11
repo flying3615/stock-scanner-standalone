@@ -1,7 +1,8 @@
-import type { CallCreditStrategySnapshot } from '../types';
+import type { CreditSpreadStrategySnapshot } from '../types';
+import { getCreditSpreadStrategyLabel } from '../utils/callCredit';
 
 interface StrategyMacroBarProps {
-    snapshot: CallCreditStrategySnapshot;
+    snapshot: CreditSpreadStrategySnapshot;
 }
 
 function formatSignedPercent(value: number): string {
@@ -10,6 +11,7 @@ function formatSignedPercent(value: number): string {
 
 export function StrategyMacroBar({ snapshot }: StrategyMacroBarProps) {
     const regime = snapshot.macro?.overallRegime ?? 'UNAVAILABLE';
+    const strategyLabel = getCreditSpreadStrategyLabel(snapshot.strategyType);
     const regimeTone = regime === 'RISK_OFF'
         ? 'border-red-500/30 bg-red-950/40 text-red-200'
         : regime === 'RISK_ON'
@@ -27,11 +29,14 @@ export function StrategyMacroBar({ snapshot }: StrategyMacroBarProps) {
                         <h2 className="mt-3 text-2xl font-semibold">{regime}</h2>
                     </div>
                     <div className="rounded-full border border-white/10 bg-black/20 px-3 py-1 text-xs text-gray-300">
-                        {snapshot.candidates.length} setups
+                        {strategyLabel}
                     </div>
                 </div>
                 <p className="mt-3 text-sm text-gray-300">
                     Filters: ${snapshot.filters.minPrice}-${snapshot.filters.maxPrice} price range, {snapshot.filters.minVolume.toLocaleString()} minimum volume, {snapshot.filters.targetDteMin}-{snapshot.filters.targetDteMax} DTE.
+                </p>
+                <p className="mt-2 text-xs text-gray-400">
+                    {snapshot.candidates.length} setups in the current snapshot.
                 </p>
             </div>
 

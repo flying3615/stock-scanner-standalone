@@ -1,4 +1,4 @@
-import type { CallCreditCandidate } from '../types';
+import type { CreditSpreadCandidate, CreditSpreadStrategyType } from '../types';
 
 const EXPIRY_FORMATTER = new Intl.DateTimeFormat('en-US', {
   month: 'short',
@@ -7,31 +7,31 @@ const EXPIRY_FORMATTER = new Intl.DateTimeFormat('en-US', {
   timeZone: 'UTC',
 });
 
-export function hasActionableCallCreditCandidates(
-  candidates: CallCreditCandidate[],
+export function hasActionableCreditSpreadCandidates(
+  candidates: CreditSpreadCandidate[],
 ): boolean {
   return candidates.some((candidate) => candidate.setupState === 'ACTIONABLE');
 }
 
-export function getVisibleCallCreditCandidates(
-  candidates: CallCreditCandidate[],
+export function getVisibleCreditSpreadCandidates(
+  candidates: CreditSpreadCandidate[],
   showWatchlist: boolean,
-): CallCreditCandidate[] {
-  if (showWatchlist || !hasActionableCallCreditCandidates(candidates)) {
+): CreditSpreadCandidate[] {
+  if (showWatchlist || !hasActionableCreditSpreadCandidates(candidates)) {
     return candidates;
   }
 
   return candidates.filter((candidate) => candidate.setupState === 'ACTIONABLE');
 }
 
-export function getDefaultSelectedCallCreditSymbol(
-  candidates: CallCreditCandidate[],
+export function getDefaultSelectedCreditSpreadSymbol(
+  candidates: CreditSpreadCandidate[],
   showWatchlist: boolean,
 ): string | null {
-  return getVisibleCallCreditCandidates(candidates, showWatchlist)[0]?.symbol ?? null;
+  return getVisibleCreditSpreadCandidates(candidates, showWatchlist)[0]?.symbol ?? null;
 }
 
-export function formatCallCreditTemplateHorizon(
+export function formatCreditSpreadTemplateHorizon(
   expiryISO: string | null | undefined,
   dte: number,
 ): string {
@@ -46,3 +46,16 @@ export function formatCallCreditTemplateHorizon(
 
   return `${EXPIRY_FORMATTER.format(parsed)} · ${dte} DTE`;
 }
+
+export function getCreditSpreadStrategyLabel(strategyType: CreditSpreadStrategyType): string {
+  return strategyType === 'BEAR_CALL_CREDIT' ? 'Bear Call Credit' : 'Bull Put Credit';
+}
+
+export function getCreditSpreadAnchorLabel(candidate: CreditSpreadCandidate): string {
+  return candidate.anchorType === 'RESISTANCE' ? 'Resistance' : 'Support';
+}
+
+export const hasActionableCallCreditCandidates = hasActionableCreditSpreadCandidates;
+export const getVisibleCallCreditCandidates = getVisibleCreditSpreadCandidates;
+export const getDefaultSelectedCallCreditSymbol = getDefaultSelectedCreditSpreadSymbol;
+export const formatCallCreditTemplateHorizon = formatCreditSpreadTemplateHorizon;

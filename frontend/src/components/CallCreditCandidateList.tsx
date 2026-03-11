@@ -1,10 +1,10 @@
-import type { CallCreditCandidate } from '../types';
-import { formatCallCreditTemplateHorizon } from '../utils/callCredit';
+import type { CreditSpreadCandidate } from '../types';
+import { formatCreditSpreadTemplateHorizon, getCreditSpreadAnchorLabel } from '../utils/callCredit';
 
 interface CallCreditCandidateListProps {
-    candidates: CallCreditCandidate[];
+    candidates: CreditSpreadCandidate[];
     selectedSymbol: string | null;
-    onSelect: (candidate: CallCreditCandidate) => void;
+    onSelect: (candidate: CreditSpreadCandidate) => void;
 }
 
 function formatSignedPercent(value: number): string {
@@ -22,7 +22,7 @@ export function CallCreditCandidateList({ candidates, selectedSymbol, onSelect }
     if (candidates.length === 0) {
         return (
             <div className="rounded-3xl border border-dashed border-neutral-700 bg-neutral-900/70 p-6 text-sm text-gray-400">
-                No call credit candidates met the current filters.
+                No credit spread candidates met the current filters.
             </div>
         );
     }
@@ -30,18 +30,27 @@ export function CallCreditCandidateList({ candidates, selectedSymbol, onSelect }
     return (
         <div className="space-y-3">
             {candidates.map((candidate) => (
+                (() => {
+                    const selectedTone = candidate.setupState === 'ACTIONABLE'
+                        ? candidate.direction === 'BULLISH'
+                            ? 'border-emerald-400/70 bg-emerald-500/10 shadow-[0_0_0_1px_rgba(52,211,153,0.15)]'
+                            : 'border-red-400/70 bg-red-500/10 shadow-[0_0_0_1px_rgba(248,113,113,0.15)]'
+                        : 'border-neutral-400/40 bg-neutral-800/90 shadow-[0_0_0_1px_rgba(163,163,163,0.12)]';
+                    const idleTone = candidate.setupState === 'ACTIONABLE'
+                        ? candidate.direction === 'BULLISH'
+                            ? 'border-emerald-500/20 bg-emerald-950/20 hover:border-emerald-400/40 hover:bg-emerald-950/30'
+                            : 'border-red-500/20 bg-red-950/20 hover:border-red-400/40 hover:bg-red-950/30'
+                        : 'border-neutral-700 bg-neutral-900/70 hover:border-neutral-500 hover:bg-neutral-900';
+
+                    return (
                 <button
                     id={`strategy-candidate-${candidate.symbol}`}
                     key={candidate.symbol}
                     type="button"
                     className={`w-full cursor-pointer rounded-3xl border p-4 text-left transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-emerald-400/70 ${
                         selectedSymbol === candidate.symbol
-                            ? candidate.setupState === 'ACTIONABLE'
-                                ? 'border-emerald-400/70 bg-emerald-500/10 shadow-[0_0_0_1px_rgba(52,211,153,0.15)]'
-                                : 'border-neutral-400/40 bg-neutral-800/90 shadow-[0_0_0_1px_rgba(163,163,163,0.12)]'
-                            : candidate.setupState === 'ACTIONABLE'
-                                ? 'border-red-500/20 bg-red-950/20 hover:border-red-400/40 hover:bg-red-950/30'
-                                : 'border-neutral-700 bg-neutral-900/70 hover:border-neutral-500 hover:bg-neutral-900'
+                            ? selectedTone
+                            : idleTone
                     }`}
                     onClick={() => onSelect(candidate)}
                 >
@@ -58,6 +67,9 @@ export function CallCreditCandidateList({ candidates, selectedSymbol, onSelect }
                                 </span>
                                 <span className="rounded-full bg-neutral-800 px-2.5 py-1 text-[11px] text-gray-400">
                                     Score {candidate.score.toFixed(1)}
+                                </span>
+                                <span className="rounded-full bg-neutral-800 px-2.5 py-1 text-[11px] text-gray-400">
+                                    {candidate.strategyType === 'BEAR_CALL_CREDIT' ? 'Bear Call' : 'Bull Put'}
                                 </span>
                             </div>
                             <div className="mt-1 text-sm text-gray-400">{candidate.name}</div>
@@ -77,8 +89,8 @@ export function CallCreditCandidateList({ candidates, selectedSymbol, onSelect }
                                     <div className="mt-1 font-mono text-white">{formatVolume(candidate.volume)}</div>
                                 </div>
                                 <div className="rounded-2xl bg-black/20 px-3 py-2">
-                                    <div className="text-[11px] uppercase tracking-[0.18em] text-gray-500">Resistance</div>
-                                    <div className="mt-1 font-mono text-white">${candidate.structureResistance.toFixed(2)}</div>
+                                    <div className="text-[11px] uppercase tracking-[0.18em] text-gray-500">{getCreditSpreadAnchorLabel(candidate)}</div>
+                                    <div className="mt-1 font-mono text-white">${candidate.anchorLevel.toFixed(2)}</div>
                                 </div>
                             </div>
                         </div>
@@ -91,7 +103,7 @@ export function CallCreditCandidateList({ candidates, selectedSymbol, onSelect }
                                         {candidate.spreadTemplate.shortStrike}/{candidate.spreadTemplate.longStrike}
                                     </div>
                                     <div className="text-sm text-gray-400">
-                                        {formatCallCreditTemplateHorizon(
+                                        {formatCreditSpreadTemplateHorizon(
                                             candidate.spreadTemplate.expiryISO,
                                             candidate.dte ?? candidate.spreadTemplate.dte,
                                         )} · Credit {candidate.spreadTemplate.creditMid.toFixed(2)}
@@ -108,6 +120,8 @@ export function CallCreditCandidateList({ candidates, selectedSymbol, onSelect }
                         </div>
                     </div>
                 </button>
+                    );
+                })()
             ))}
         </div>
     );

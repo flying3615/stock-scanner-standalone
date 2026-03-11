@@ -1,5 +1,32 @@
 import type { MacroSnapshot } from '../macro/macro-monitor.js';
 
+export const CREDIT_SPREAD_STRATEGY_TYPES = ['BEAR_CALL_CREDIT', 'BULL_PUT_CREDIT'] as const;
+export type CreditSpreadStrategyType = (typeof CREDIT_SPREAD_STRATEGY_TYPES)[number];
+
+export const CREDIT_SPREAD_DIRECTIONS = ['BEARISH', 'BULLISH'] as const;
+export type CreditSpreadDirection = (typeof CREDIT_SPREAD_DIRECTIONS)[number];
+
+export const CREDIT_SPREAD_ANCHOR_TYPES = ['RESISTANCE', 'SUPPORT'] as const;
+export type CreditSpreadAnchorType = (typeof CREDIT_SPREAD_ANCHOR_TYPES)[number];
+
+export const CREDIT_SPREAD_SETUP_STATES = ['ACTIONABLE', 'WATCHLIST'] as const;
+export type CreditSpreadSetupState = (typeof CREDIT_SPREAD_SETUP_STATES)[number];
+
+export const CREDIT_SPREAD_OPTION_TYPES = ['CALL', 'PUT'] as const;
+export type CreditSpreadOptionType = (typeof CREDIT_SPREAD_OPTION_TYPES)[number];
+
+export const CREDIT_SPREAD_BLOCKERS = [
+  'MOVE_DIRECTION_CONFLICT',
+  'BREAKDOWN_TOO_WEAK',
+  'BOUNCE_NOT_CONFIRMED',
+  'MACRO_NOT_ALIGNED',
+  'NO_LIQUID_TEMPLATE',
+  'CREDIT_TOO_THIN',
+  'SUPPORT_ALREADY_LOST',
+  'RESISTANCE_ALREADY_RECLAIMED',
+] as const;
+export type CreditSpreadBlocker = (typeof CREDIT_SPREAD_BLOCKERS)[number];
+
 export interface StrategyCandle {
   open: number;
   high: number;
@@ -22,7 +49,18 @@ export interface BreakdownStateInput {
   brokePrior20Low: boolean;
 }
 
-export interface CallOptionQuote {
+export interface BounceStateInput {
+  changePercent: number;
+  volumeRatio20: number;
+  closeLocationValue: number;
+  lowerWickRatio: number;
+  heldEma20: boolean;
+  heldEma50: boolean;
+  heldPrior20Low: boolean;
+}
+
+export interface StrategyOptionQuote {
+  optionType: CreditSpreadOptionType;
   strike: number;
   delta?: number | null;
   bid: number;
@@ -31,22 +69,35 @@ export interface CallOptionQuote {
   volume: number;
 }
 
-export interface EstimateCallDeltaInput {
+export interface EstimateOptionDeltaInput {
   spotPrice: number;
   strike: number;
   dte: number;
+  optionType: CreditSpreadOptionType;
 }
 
-export interface SelectCallCreditTemplateInput {
+export interface SelectBearCallCreditTemplateInput {
   spotPrice: number;
-  structureResistance: number;
+  anchorLevel: number;
   expiryISO: string;
-  options: CallOptionQuote[];
+  options: StrategyOptionQuote[];
   widthCandidates: number[];
   dte: number;
 }
 
-export interface CallCreditTemplate {
+export interface SelectBullPutCreditTemplateInput {
+  spotPrice: number;
+  anchorLevel: number;
+  expiryISO: string;
+  options: StrategyOptionQuote[];
+  widthCandidates: number[];
+  dte: number;
+}
+
+export interface CreditSpreadTemplate {
+  strategyType: CreditSpreadStrategyType;
+  shortLegType: CreditSpreadOptionType;
+  longLegType: CreditSpreadOptionType;
   expiryISO: string;
   shortStrike: number;
   longStrike: number;
@@ -65,34 +116,37 @@ export interface CallCreditTemplate {
   stopLossAt: number;
 }
 
-export type CallCreditSetupState = 'ACTIONABLE' | 'WATCHLIST';
-
-export interface CallCreditCandidate {
+export interface CreditSpreadCandidate {
+  strategyType: CreditSpreadStrategyType;
+  direction: CreditSpreadDirection;
   symbol: string;
   name: string;
   price: number;
   changePercent: number;
   volume: number;
   score: number;
-  setupState: CallCreditSetupState;
-  breakdownScore: number;
+  setupState: CreditSpreadSetupState;
+  structureScore: number;
   macroScore: number;
   valueBias: number;
-  structureResistance: number;
+  anchorType: CreditSpreadAnchorType;
+  anchorLevel: number;
   invalidationPrice: number;
   volumeRatio20: number;
   closeLocationValue: number;
   upperWickRatio: number;
+  lowerWickRatio: number;
   eventTags: string[];
   thesis: string[];
+  blockers: CreditSpreadBlocker[];
   watchlistReasons: string[];
-  spreadTemplate: CallCreditTemplate | null;
+  spreadTemplate: CreditSpreadTemplate | null;
   dte: number | null;
   sector?: string;
   industry?: string;
 }
 
-export interface CallCreditStrategyFilters {
+export interface CreditSpreadStrategyFilters {
   minPrice: number;
   maxPrice: number;
   minVolume: number;
@@ -100,22 +154,37 @@ export interface CallCreditStrategyFilters {
   targetDteMax: number;
 }
 
-export interface CallCreditStrategySnapshot {
+export interface CreditSpreadStrategySnapshot {
   generatedAt: string;
+  strategyType: CreditSpreadStrategyType;
   macro: MacroSnapshot | null;
-  filters: CallCreditStrategyFilters;
-  candidates: CallCreditCandidate[];
+  filters: CreditSpreadStrategyFilters;
+  candidates: CreditSpreadCandidate[];
 }
 
-export interface CallCreditSymbolInput {
+export interface CreditSpreadSymbolInput {
   chart: StrategyDailyBar[];
-  options: CallOptionQuote[];
+  callOptions: StrategyOptionQuote[];
+  putOptions: StrategyOptionQuote[];
   dte?: number | null;
   expiryISO?: string | null;
+  anchorLevel?: number;
   structureResistance?: number;
+  structureSupport?: number;
   valueScore?: number | null;
   sector?: string;
   industry?: string;
   earningsDays?: number | null;
+  recentEventDays?: number | null;
   eventTags?: string[];
 }
+
+export type CallOptionQuote = StrategyOptionQuote;
+export type EstimateCallDeltaInput = EstimateOptionDeltaInput;
+export type SelectCallCreditTemplateInput = SelectBearCallCreditTemplateInput;
+export type CallCreditTemplate = CreditSpreadTemplate;
+export type CallCreditSetupState = CreditSpreadSetupState;
+export type CallCreditCandidate = CreditSpreadCandidate;
+export type CallCreditStrategyFilters = CreditSpreadStrategyFilters;
+export type CallCreditStrategySnapshot = CreditSpreadStrategySnapshot;
+export type CallCreditSymbolInput = CreditSpreadSymbolInput;

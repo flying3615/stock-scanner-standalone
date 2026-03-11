@@ -1,8 +1,8 @@
-import type { CallCreditCandidate } from '../types';
-import { formatCallCreditTemplateHorizon } from '../utils/callCredit';
+import type { CreditSpreadCandidate } from '../types';
+import { formatCreditSpreadTemplateHorizon, getCreditSpreadAnchorLabel } from '../utils/callCredit';
 
 interface CallCreditDetailPanelProps {
-    candidate: CallCreditCandidate | null;
+    candidate: CreditSpreadCandidate | null;
 }
 
 export function CallCreditDetailPanel({ candidate }: CallCreditDetailPanelProps) {
@@ -33,13 +33,22 @@ export function CallCreditDetailPanel({ candidate }: CallCreditDetailPanelProps)
                         <span className="rounded-full bg-neutral-800 px-2.5 py-1 text-[11px] text-gray-400">
                             Score {candidate.score.toFixed(1)}
                         </span>
+                        <span className="rounded-full bg-neutral-800 px-2.5 py-1 text-[11px] text-gray-400">
+                            {candidate.strategyType === 'BEAR_CALL_CREDIT' ? 'Bear Call Credit' : 'Bull Put Credit'}
+                        </span>
                     </div>
                     <h3 className="mt-3 text-3xl font-semibold text-white">{candidate.symbol}</h3>
                     <p className="mt-1 text-sm text-gray-400">{candidate.name}</p>
                 </div>
-                <div className="rounded-3xl border border-white/5 bg-black/20 px-4 py-3">
-                    <div className="text-[11px] uppercase tracking-[0.18em] text-gray-500">Invalidation</div>
-                    <div className="mt-1 font-mono text-xl text-white">${candidate.invalidationPrice.toFixed(2)}</div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="rounded-3xl border border-white/5 bg-black/20 px-4 py-3">
+                        <div className="text-[11px] uppercase tracking-[0.18em] text-gray-500">{getCreditSpreadAnchorLabel(candidate)}</div>
+                        <div className="mt-1 font-mono text-xl text-white">${candidate.anchorLevel.toFixed(2)}</div>
+                    </div>
+                    <div className="rounded-3xl border border-white/5 bg-black/20 px-4 py-3">
+                        <div className="text-[11px] uppercase tracking-[0.18em] text-gray-500">Invalidation</div>
+                        <div className="mt-1 font-mono text-xl text-white">${candidate.invalidationPrice.toFixed(2)}</div>
+                    </div>
                 </div>
             </div>
 
@@ -69,7 +78,7 @@ export function CallCreditDetailPanel({ candidate }: CallCreditDetailPanelProps)
                 <div className="rounded-3xl bg-black/20 p-4">
                     <div className="text-[11px] uppercase tracking-[0.18em] text-gray-500">Expiry</div>
                     <div className="mt-2 font-mono text-base text-white">
-                        {spread ? formatCallCreditTemplateHorizon(spread.expiryISO, candidate.dte ?? spread.dte) : '—'}
+                        {spread ? formatCreditSpreadTemplateHorizon(spread.expiryISO, candidate.dte ?? spread.dte) : '—'}
                     </div>
                 </div>
             </div>
@@ -102,6 +111,10 @@ export function CallCreditDetailPanel({ candidate }: CallCreditDetailPanelProps)
                             <div className="flex items-center justify-between rounded-2xl bg-neutral-900/80 px-3 py-2">
                                 <span>Width</span>
                                 <span className="font-mono text-white">{spread.width.toFixed(0)}</span>
+                            </div>
+                            <div className="flex items-center justify-between rounded-2xl bg-neutral-900/80 px-3 py-2">
+                                <span>Leg Type</span>
+                                <span className="font-mono text-white">{spread.shortLegType}</span>
                             </div>
                             <div className="flex items-center justify-between rounded-2xl bg-neutral-900/80 px-3 py-2">
                                 <span>Short Delta</span>
