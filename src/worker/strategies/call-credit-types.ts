@@ -1,8 +1,15 @@
+import type { MacroSnapshot } from '../macro/macro-monitor.js';
+
 export interface StrategyCandle {
   open: number;
   high: number;
   low: number;
   close: number;
+}
+
+export interface StrategyDailyBar extends StrategyCandle {
+  date?: string;
+  volume: number;
 }
 
 export interface BreakdownStateInput {
@@ -54,4 +61,58 @@ export interface CallCreditTemplate {
   creditPctWidth: number;
   takeProfitAt: number;
   stopLossAt: number;
+}
+
+export type CallCreditSetupState = 'ACTIONABLE' | 'WATCHLIST';
+
+export interface CallCreditCandidate {
+  symbol: string;
+  name: string;
+  price: number;
+  changePercent: number;
+  volume: number;
+  score: number;
+  setupState: CallCreditSetupState;
+  breakdownScore: number;
+  macroScore: number;
+  valueBias: number;
+  structureResistance: number;
+  invalidationPrice: number;
+  volumeRatio20: number;
+  closeLocationValue: number;
+  upperWickRatio: number;
+  eventTags: string[];
+  thesis: string[];
+  watchlistReasons: string[];
+  spreadTemplate: CallCreditTemplate | null;
+  dte: number | null;
+  sector?: string;
+  industry?: string;
+}
+
+export interface CallCreditStrategyFilters {
+  minPrice: number;
+  maxPrice: number;
+  minVolume: number;
+  targetDteMin: number;
+  targetDteMax: number;
+}
+
+export interface CallCreditStrategySnapshot {
+  generatedAt: string;
+  macro: MacroSnapshot | null;
+  filters: CallCreditStrategyFilters;
+  candidates: CallCreditCandidate[];
+}
+
+export interface CallCreditSymbolInput {
+  chart: StrategyDailyBar[];
+  options: CallOptionQuote[];
+  dte?: number | null;
+  structureResistance?: number;
+  valueScore?: number | null;
+  sector?: string;
+  industry?: string;
+  earningsDays?: number | null;
+  eventTags?: string[];
 }

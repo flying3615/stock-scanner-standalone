@@ -26,6 +26,8 @@ tags:
     description: Value and options analysis endpoints
   - name: Analytics
     description: Sector trends and macro indicators
+  - name: Strategies
+    description: Ranked strategy setups derived from scanner, options, and macro inputs
   - name: History
     description: Historical scan results
   - name: News
@@ -423,6 +425,88 @@ paths:
                     source: 'FinancialJuice'
         '500':
           description: Failed to load news
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/strategies/call-credit:
+    get:
+      tags:
+        - Strategies
+      summary: Get ranked call credit spread candidates
+      description: |
+        Builds a dedicated bearish strategy snapshot by combining market movers,
+        daily chart structure, macro regime, and near-term call spread templates.
+      operationId: getCallCreditStrategySnapshot
+      responses:
+        '200':
+          description: Ranked call credit strategy snapshot
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CallCreditStrategySnapshot'
+              example:
+                generatedAt: '2026-03-12T08:10:00.000Z'
+                macro:
+                  indices: []
+                  dxy:
+                    symbol: DX-Y.NYB
+                    price: 104.0
+                    changePercent: 0.5
+                    trend: UP
+                  vix:
+                    symbol: ^VIX
+                    price: 20.0
+                    changePercent: 6.0
+                    status: RISING
+                  overallRegime: RISK_OFF
+                filters:
+                  minPrice: 20
+                  maxPrice: 500
+                  minVolume: 20000000
+                  targetDteMin: 3
+                  targetDteMax: 7
+                candidates:
+                  - symbol: TSLA
+                    name: Tesla
+                    price: 212
+                    changePercent: -8.1
+                    volume: 120000000
+                    score: 35
+                    setupState: ACTIONABLE
+                    breakdownScore: 28
+                    macroScore: 6
+                    valueBias: 2
+                    structureResistance: 226
+                    invalidationPrice: 228.26
+                    volumeRatio20: 2.31
+                    closeLocationValue: 0.09
+                    upperWickRatio: 0.09
+                    eventTags: []
+                    thesis:
+                      - Closed below the prior 20-session low
+                      - Options chain offers a liquid call credit spread above resistance
+                    watchlistReasons: []
+                    dte: 5
+                    spreadTemplate:
+                      shortStrike: 230
+                      longStrike: 235
+                      width: 5
+                      dte: 5
+                      shortDelta: 0.16
+                      shortBid: 1.2
+                      shortAsk: 1.6
+                      longBid: 0.55
+                      longAsk: 0.7
+                      shortMid: 1.4
+                      longMid: 0.62
+                      creditMid: 0.78
+                      creditPctWidth: 0.28
+                      takeProfitAt: 0.31
+                      stopLossAt: 1.55
+        '500':
+          description: Failed to build call credit strategy snapshot
           content:
             application/json:
               schema:
@@ -1035,6 +1119,9 @@ components:
       type: object
       description: Macro indicator ticker data
       properties:
+        symbol:
+          type: string
+          example: DX-Y.NYB
         price:
           type: number
           format: float
@@ -1047,6 +1134,208 @@ components:
           type: number
           format: float
           example: 0.12
+        trend:
+          type: string
+          nullable: true
+          example: UP
+        status:
+          type: string
+          nullable: true
+          example: RISING
+
+    CallCreditTemplate:
+      type: object
+      description: Suggested 3-7 DTE call credit spread template
+      properties:
+        shortStrike:
+          type: number
+          format: float
+          example: 230
+        longStrike:
+          type: number
+          format: float
+          example: 235
+        width:
+          type: number
+          format: float
+          example: 5
+        dte:
+          type: integer
+          example: 5
+        shortDelta:
+          type: number
+          format: float
+          example: 0.16
+        shortBid:
+          type: number
+          format: float
+          example: 1.2
+        shortAsk:
+          type: number
+          format: float
+          example: 1.6
+        longBid:
+          type: number
+          format: float
+          example: 0.55
+        longAsk:
+          type: number
+          format: float
+          example: 0.7
+        shortMid:
+          type: number
+          format: float
+          example: 1.4
+        longMid:
+          type: number
+          format: float
+          example: 0.62
+        creditMid:
+          type: number
+          format: float
+          example: 0.78
+        creditPctWidth:
+          type: number
+          format: float
+          example: 0.28
+        takeProfitAt:
+          type: number
+          format: float
+          example: 0.31
+        stopLossAt:
+          type: number
+          format: float
+          example: 1.55
+
+    CallCreditCandidate:
+      type: object
+      description: Ranked bearish call credit setup candidate
+      properties:
+        symbol:
+          type: string
+          example: TSLA
+        name:
+          type: string
+          example: Tesla
+        price:
+          type: number
+          format: float
+          example: 212
+        changePercent:
+          type: number
+          format: float
+          example: -8.1
+        volume:
+          type: integer
+          example: 120000000
+        score:
+          type: number
+          format: float
+          example: 35
+        setupState:
+          type: string
+          enum: [ACTIONABLE, WATCHLIST]
+          example: ACTIONABLE
+        breakdownScore:
+          type: number
+          format: float
+          example: 28
+        macroScore:
+          type: number
+          format: float
+          example: 6
+        valueBias:
+          type: number
+          format: float
+          example: 2
+        structureResistance:
+          type: number
+          format: float
+          example: 226
+        invalidationPrice:
+          type: number
+          format: float
+          example: 228.26
+        volumeRatio20:
+          type: number
+          format: float
+          example: 2.31
+        closeLocationValue:
+          type: number
+          format: float
+          example: 0.09
+        upperWickRatio:
+          type: number
+          format: float
+          example: 0.09
+        eventTags:
+          type: array
+          items:
+            type: string
+        thesis:
+          type: array
+          items:
+            type: string
+        watchlistReasons:
+          type: array
+          items:
+            type: string
+        dte:
+          type: integer
+          nullable: true
+          example: 5
+        sector:
+          type: string
+          nullable: true
+          example: Consumer Cyclical
+        industry:
+          type: string
+          nullable: true
+          example: Auto Manufacturers
+        spreadTemplate:
+          allOf:
+            - $ref: '#/components/schemas/CallCreditTemplate'
+          nullable: true
+
+    CallCreditStrategyFilters:
+      type: object
+      properties:
+        minPrice:
+          type: number
+          format: float
+          example: 20
+        maxPrice:
+          type: number
+          format: float
+          example: 500
+        minVolume:
+          type: integer
+          example: 20000000
+        targetDteMin:
+          type: integer
+          example: 3
+        targetDteMax:
+          type: integer
+          example: 7
+
+    CallCreditStrategySnapshot:
+      type: object
+      description: Ranked call credit spread strategy payload
+      properties:
+        generatedAt:
+          type: string
+          format: date-time
+          example: '2026-03-12T08:10:00.000Z'
+        macro:
+          allOf:
+            - $ref: '#/components/schemas/MacroSnapshot'
+          nullable: true
+        filters:
+          $ref: '#/components/schemas/CallCreditStrategyFilters'
+        candidates:
+          type: array
+          items:
+            $ref: '#/components/schemas/CallCreditCandidate'
 
     NewsItem:
       type: object

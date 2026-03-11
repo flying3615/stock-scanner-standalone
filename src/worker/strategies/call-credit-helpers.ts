@@ -7,7 +7,7 @@ import type {
   StrategyCandle,
 } from './call-credit-types.js';
 
-export function calculateCloseLocationValue(candle: Pick<StrategyCandle, 'high' | 'low' | 'close'>): number {
+export function calculateCloseLocationValue(candle: StrategyCandle): number {
   const range = candle.high - candle.low;
   if (range <= 0) {
     return 0.5;

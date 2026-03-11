@@ -9,6 +9,7 @@ import { scanSymbolOptions } from './worker/options/options.js';
 import { saveScanResult, getHistory } from './db/persistence.js';
 import { initScheduler } from './scheduler.js';
 import { getMacroSnapshot } from './worker/macro/macro-monitor.js';
+import { getCallCreditStrategySnapshot } from './worker/strategies/call-credit.js';
 import { setupOpenAPI } from './api/openapi-setup.js';
 import {
     buildTokenStatus,
@@ -205,6 +206,24 @@ app.get('/api/macro', async (_req, res) => {
     } catch (error) {
         console.error('[API] Failed to fetch macro snapshot', error);
         res.status(500).json({ error: 'Failed to fetch macro snapshot' });
+    }
+});
+
+// Call Credit Strategy Endpoint
+app.get('/api/strategies/call-credit', async (_req, res) => {
+    const cacheKey = 'strategy_call_credit';
+    const cached = cache.get(cacheKey);
+    if (cached) {
+        return res.json(cached);
+    }
+
+    try {
+        const data = await getCallCreditStrategySnapshot();
+        cache.set(cacheKey, data, 300);
+        res.json(data);
+    } catch (error) {
+        console.error('[API] Failed to build call credit strategy snapshot', error);
+        res.status(500).json({ error: 'Failed to build call credit strategy snapshot' });
     }
 });
 
