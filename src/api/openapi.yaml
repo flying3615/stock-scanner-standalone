@@ -1421,6 +1421,7 @@ components:
           type: number
           format: float
           nullable: true
+          description: Signed option delta. Uses vendor greeks when available and falls back to a heuristic estimate when the upstream chain omits delta.
           example: 0.52
         impliedVolatility:
           type: number

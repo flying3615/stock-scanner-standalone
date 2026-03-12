@@ -7,6 +7,7 @@ import {
   type NearbyOptionsExpiryBucket,
 } from './contracts.js';
 import { fetchOptionsData } from '../options/fetch.js';
+import { estimateOptionDelta } from '../strategies/call-credit-helpers.js';
 
 export interface BuildNearbyOptionsChainSnapshotInput {
   symbol: string;
@@ -183,9 +184,18 @@ function normalizeExpiryBucket(
   if (!expirationDate) {
     return null;
   }
+  const dte = diffCalendarDays(expirationDate, now);
 
-  const calls = normalizeOptionRows(option?.calls ?? []);
-  const puts = normalizeOptionRows(option?.puts ?? []);
+  const calls = normalizeOptionRows(option?.calls ?? [], {
+    optionType: 'CALL',
+    spot,
+    dte,
+  });
+  const puts = normalizeOptionRows(option?.puts ?? [], {
+    optionType: 'PUT',
+    spot,
+    dte,
+  });
   const selectedStrikes = selectNearbyStrikes(
     dedupeSortedStrikes([
       ...calls.map((row) => row.strike),
@@ -199,21 +209,27 @@ function normalizeExpiryBucket(
 
   return {
     expiryISO: expirationDate.toISOString().slice(0, 10),
-    dte: diffCalendarDays(expirationDate, now),
+    dte,
     atmStrike,
     calls: calls.filter((row) => strikeSet.has(row.strike)),
     puts: puts.filter((row) => strikeSet.has(row.strike)),
   };
 }
 
-function normalizeOptionRows(rows: any[]): NearbyOptionRow[] {
+function normalizeOptionRows(
+  rows: any[],
+  context: { optionType: 'CALL' | 'PUT'; spot: number | null; dte: number },
+): NearbyOptionRow[] {
   return rows
-    .map((row) => normalizeOptionRow(row))
+    .map((row) => normalizeOptionRow(row, context))
     .filter((row): row is NearbyOptionRow => row !== null)
     .sort((left, right) => left.strike - right.strike);
 }
 
-function normalizeOptionRow(row: any): NearbyOptionRow | null {
+function normalizeOptionRow(
+  row: any,
+  context: { optionType: 'CALL' | 'PUT'; spot: number | null; dte: number },
+): NearbyOptionRow | null {
   const strike = normalizeOptionalNumber(row?.strike);
   if (strike === null) {
     return null;
@@ -221,6 +237,13 @@ function normalizeOptionRow(row: any): NearbyOptionRow | null {
 
   const bid = normalizeOptionalPrice(row?.bid);
   const ask = normalizeOptionalPrice(row?.ask);
+  const delta = normalizeOptionalNumber(row?.delta ?? row?.greeks?.delta)
+    ?? estimateDeltaFallback({
+      optionType: context.optionType,
+      spot: context.spot,
+      strike,
+      dte: context.dte,
+    });
 
   return {
     contractSymbol: typeof row?.contractSymbol === 'string' ? row.contractSymbol : null,
@@ -229,13 +252,31 @@ function normalizeOptionRow(row: any): NearbyOptionRow | null {
     ask,
     mid: deriveMid(bid, ask),
     last: normalizeOptionalPrice(row?.lastPrice ?? row?.last),
-    delta: normalizeOptionalNumber(row?.delta),
+    delta,
     impliedVolatility: normalizeOptionalNumber(row?.impliedVolatility),
     openInterest: normalizeOptionalCount(row?.openInterest),
     volume: normalizeOptionalCount(row?.volume),
     inTheMoney: typeof row?.inTheMoney === 'boolean' ? row.inTheMoney : null,
     lastTradeDate: normalizeDate(row?.lastTradeDate)?.toISOString() ?? null,
   };
+}
+
+function estimateDeltaFallback(input: {
+  optionType: 'CALL' | 'PUT';
+  spot: number | null;
+  strike: number;
+  dte: number;
+}): number | null {
+  if (input.spot === null || input.spot <= 0 || input.dte <= 0) {
+    return null;
+  }
+
+  return round4(estimateOptionDelta({
+    spotPrice: input.spot,
+    strike: input.strike,
+    dte: input.dte,
+    optionType: input.optionType,
+  }));
 }
 
 function selectNearbyStrikes(strikes: number[], spot: number | null, strikesEachSide: number): number[] {

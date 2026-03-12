@@ -83,7 +83,7 @@ test('buildNearbyOptionsChainSnapshot normalizes nullable values and derived mid
   assert.equal(snapshot.expiries[0]?.calls[0]?.mid, 2);
   assert.equal(snapshot.expiries[0]?.calls[1]?.mid, 1.2);
   assert.equal(snapshot.expiries[0]?.calls[1]?.impliedVolatility, null);
-  assert.equal(snapshot.expiries[0]?.calls[1]?.delta, null);
+  assert.ok((snapshot.expiries[0]?.calls[1]?.delta ?? 0) > 0);
   assert.equal(snapshot.expiries[0]?.calls[1]?.lastTradeDate, null);
 });
 
