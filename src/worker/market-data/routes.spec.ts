@@ -30,6 +30,12 @@ async function startTestServer(options?: {
         belowSpot: 10,
         aboveSpot: 10,
       },
+      selectionMode: 'STRICT',
+      effectiveDteRange: {
+        dteMin: 4,
+        dteMax: 4,
+      },
+      expansionReasonCode: null,
       emptyReasonCode: null,
     },
     expiries: [
@@ -132,7 +138,7 @@ test('GET /api/options-chain/nearby/:symbol returns a normalized nearby chain sn
   }
 });
 
-test('GET /api/options-chain/nearby/:symbol returns 200 with empty expiries when filters remove all nearby dates', async () => {
+test('GET /api/options-chain/nearby/:symbol returns expanded expiries when the requested DTE window is empty', async () => {
   const harness = await startTestServer({
     nearbySymbol: 'NU',
     nearbySnapshot: {
@@ -145,16 +151,30 @@ test('GET /api/options-chain/nearby/:symbol returns 200 with empty expiries when
         strikesEachSide: 10,
       },
       summary: {
-        selectedExpiryCount: 0,
-        availableExpiries: [],
-        atmStrike: null,
+        selectedExpiryCount: 1,
+        availableExpiries: ['2026-03-20'],
+        atmStrike: 12.5,
         strikeWindow: {
           belowSpot: 10,
           aboveSpot: 10,
         },
-        emptyReasonCode: 'NO_EXPIRIES_IN_RANGE',
+        selectionMode: 'EXPANDED',
+        effectiveDteRange: {
+          dteMin: 8,
+          dteMax: 8,
+        },
+        expansionReasonCode: 'NEXT_AVAILABLE_EXPIRY',
+        emptyReasonCode: null,
       },
-      expiries: [],
+      expiries: [
+        {
+          expiryISO: '2026-03-20',
+          dte: 8,
+          atmStrike: 12.5,
+          calls: [],
+          puts: [],
+        },
+      ],
     },
   });
 
@@ -164,8 +184,9 @@ test('GET /api/options-chain/nearby/:symbol returns 200 with empty expiries when
 
     const payload = await response.json() as NearbyOptionsChainSnapshot;
     assert.equal(payload.symbol, 'NU');
-    assert.deepEqual(payload.expiries, []);
-    assert.equal(payload.summary.emptyReasonCode, 'NO_EXPIRIES_IN_RANGE');
+    assert.equal(payload.expiries.length, 1);
+    assert.equal(payload.summary.selectionMode, 'EXPANDED');
+    assert.equal(payload.summary.expansionReasonCode, 'NEXT_AVAILABLE_EXPIRY');
   } finally {
     await new Promise<void>((resolve, reject) => harness.server.close((error) => error ? reject(error) : resolve()));
   }
@@ -191,6 +212,12 @@ test('GET /api/options-chain/nearby/:symbol keeps 404 only for symbols with no o
           belowSpot: 10,
           aboveSpot: 10,
         },
+        selectionMode: 'STRICT',
+        effectiveDteRange: {
+          dteMin: null,
+          dteMax: null,
+        },
+        expansionReasonCode: null,
         emptyReasonCode: 'NO_OPTION_DATA',
       },
       expiries: [],

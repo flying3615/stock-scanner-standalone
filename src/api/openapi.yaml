@@ -242,8 +242,10 @@ paths:
 
         `asOf` is the server-side snapshot generation time, not necessarily the timestamp of the last trade.
         `mid` is a derived midpoint estimate, not an executable guarantee.
-        If the symbol has option data but nothing survives the requested DTE window, the route still
-        returns `200` with `expiries: []` and `summary.emptyReasonCode = NO_EXPIRIES_IN_RANGE`.
+        If the requested DTE window is empty, the route automatically expands to the nearest available
+        expiry, preferring the next later expiry over a shorter-dated fallback. Inspect
+        `summary.selectionMode`, `summary.effectiveDteRange`, and `summary.expansionReasonCode`
+        to see whether expansion occurred.
       operationId: getNearbyOptionsChainSnapshot
       parameters:
         - name: symbol
@@ -304,6 +306,11 @@ paths:
                   strikeWindow:
                     belowSpot: 10
                     aboveSpot: 10
+                  selectionMode: STRICT
+                  effectiveDteRange:
+                    dteMin: 4
+                    dteMax: 4
+                  expansionReasonCode: null
                   emptyReasonCode: null
                 expiries:
                   - expiryISO: '2026-03-16'
@@ -1348,19 +1355,54 @@ components:
           example: 185
         strikeWindow:
           $ref: '#/components/schemas/NearbyOptionsStrikeWindow'
+        selectionMode:
+          $ref: '#/components/schemas/NearbyOptionsSelectionMode'
+        effectiveDteRange:
+          $ref: '#/components/schemas/NearbyOptionsEffectiveDteRange'
+        expansionReasonCode:
+          allOf:
+            - $ref: '#/components/schemas/NearbyOptionsExpansionReasonCode'
+          nullable: true
+          description: |
+            Present when `selectionMode = EXPANDED`. `NEXT_AVAILABLE_EXPIRY` means the server
+            moved to the nearest later expiry because the requested window was empty.
+            `PREVIOUS_AVAILABLE_EXPIRY` means no later expiry existed, so the closest shorter-dated
+            expiry was used instead.
+          example: NEXT_AVAILABLE_EXPIRY
         emptyReasonCode:
           allOf:
             - $ref: '#/components/schemas/NearbyOptionsEmptyReasonCode'
           nullable: true
           description: |
-            Present only when `expiries` is empty. `NO_EXPIRIES_IN_RANGE` means option data exists
-            but nothing matched the requested DTE window. `NO_OPTION_DATA` means the upstream source
-            exposed no option expiries for this symbol.
-          example: NO_EXPIRIES_IN_RANGE
+            Present only when no usable expiry bucket can be returned. `NO_OPTION_DATA` means the
+            upstream source exposed no option expiries for this symbol. `NO_EXPIRIES_IN_RANGE`
+            is retained for compatibility when the requested range was empty and no expanded
+            fallback could be loaded.
+          example: NO_OPTION_DATA
 
     NearbyOptionsEmptyReasonCode:
       type: string
       enum: [NO_EXPIRIES_IN_RANGE, NO_OPTION_DATA]
+
+    NearbyOptionsSelectionMode:
+      type: string
+      enum: [STRICT, EXPANDED]
+
+    NearbyOptionsExpansionReasonCode:
+      type: string
+      enum: [NEXT_AVAILABLE_EXPIRY, PREVIOUS_AVAILABLE_EXPIRY]
+
+    NearbyOptionsEffectiveDteRange:
+      type: object
+      properties:
+        dteMin:
+          type: integer
+          nullable: true
+          example: 4
+        dteMax:
+          type: integer
+          nullable: true
+          example: 4
 
     NearbyOptionsStrikeWindow:
       type: object
