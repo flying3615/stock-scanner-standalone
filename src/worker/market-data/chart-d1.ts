@@ -6,12 +6,43 @@ import {
   calculateLowerWickRatio,
   calculateUpperWickRatio,
 } from '../strategies/call-credit-helpers.js';
+import { fetchDirectChart } from '../yahoo-direct.js';
 
 export interface BuildDailyChartSnapshotInput {
   symbol: string;
   quotes: any[];
   lookback?: number;
   asOf?: Date | string;
+}
+
+export interface GetDailyChartSnapshotOptions {
+  lookback?: number;
+  endDate?: Date;
+}
+
+const MIN_EMA_HISTORY_BARS = 260;
+const MIN_FETCH_CALENDAR_DAYS = 420;
+
+export async function getDailyChartSnapshot(
+  symbol: string,
+  options: GetDailyChartSnapshotOptions = {},
+): Promise<DailyChartSnapshot> {
+  const normalizedSymbol = symbol.trim().toUpperCase();
+  const lookback = options.lookback ?? DEFAULT_CHART_D1_LOOKBACK;
+  const endDate = options.endDate ?? new Date();
+  const lookbackBars = Math.max(lookback, MIN_EMA_HISTORY_BARS);
+  const calendarDays = Math.max(Math.ceil(lookbackBars * 1.6), MIN_FETCH_CALENDAR_DAYS);
+  const startDate = new Date(endDate);
+  startDate.setUTCDate(startDate.getUTCDate() - calendarDays);
+
+  const chart = await fetchDirectChart(normalizedSymbol, startDate, endDate, '1d');
+
+  return buildDailyChartSnapshot({
+    symbol: normalizedSymbol,
+    quotes: Array.isArray(chart?.quotes) ? chart.quotes : [],
+    lookback,
+    asOf: endDate,
+  });
 }
 
 export function buildDailyChartSnapshot(input: BuildDailyChartSnapshotInput): DailyChartSnapshot {

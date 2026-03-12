@@ -6,6 +6,7 @@ import {
   type NearbyOptionsChainSnapshot,
   type NearbyOptionsExpiryBucket,
 } from './contracts.js';
+import { fetchOptionsData } from '../options/fetch.js';
 
 export interface BuildNearbyOptionsChainSnapshotInput {
   symbol: string;
@@ -16,6 +17,36 @@ export interface BuildNearbyOptionsChainSnapshotInput {
   dteMax?: number;
   strikesEachSide?: number;
   now?: Date;
+}
+
+export interface GetNearbyOptionsChainSnapshotOptions {
+  dteMin?: number;
+  dteMax?: number;
+  strikesEachSide?: number;
+  polygonApiKey?: string;
+}
+
+export async function getNearbyOptionsChainSnapshot(
+  symbol: string,
+  options: GetNearbyOptionsChainSnapshotOptions = {},
+): Promise<NearbyOptionsChainSnapshot> {
+  const normalizedSymbol = symbol.trim().toUpperCase();
+  const chain = await fetchOptionsData(normalizedSymbol, {
+    polygonApiKey: options.polygonApiKey,
+    includeQuote: true,
+  });
+
+  return buildNearbyOptionsChainSnapshot({
+    symbol: normalizedSymbol,
+    spot: chain.rmp || normalizeOptionalNumber(chain.base?.quote?.regularMarketPrice),
+    asOf: chain.base?.quote?.regularMarketTime instanceof Date
+      ? chain.base.quote.regularMarketTime
+      : new Date(),
+    chain: chain.base,
+    dteMin: options.dteMin,
+    dteMax: options.dteMax,
+    strikesEachSide: options.strikesEachSide,
+  });
 }
 
 export function buildNearbyOptionsChainSnapshot(
