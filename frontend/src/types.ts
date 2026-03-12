@@ -145,6 +145,9 @@ export interface MacroSnapshot {
 }
 
 export type MarketDataInterval = '1d';
+export type NearbyOptionsEmptyReasonCode = 'NO_EXPIRIES_IN_RANGE' | 'NO_OPTION_DATA';
+export type NearbyOptionsSelectionMode = 'STRICT' | 'EXPANDED';
+export type NearbyOptionsExpansionReasonCode = 'NEXT_AVAILABLE_EXPIRY' | 'PREVIOUS_AVAILABLE_EXPIRY';
 
 export interface NearbyOptionRow {
     contractSymbol: string | null;
@@ -186,6 +189,13 @@ export interface NearbyOptionsChainSnapshot {
             belowSpot: number;
             aboveSpot: number;
         };
+        selectionMode: NearbyOptionsSelectionMode;
+        effectiveDteRange: {
+            dteMin: number | null;
+            dteMax: number | null;
+        };
+        expansionReasonCode: NearbyOptionsExpansionReasonCode | null;
+        emptyReasonCode: NearbyOptionsEmptyReasonCode | null;
     };
     expiries: NearbyOptionsExpiryBucket[];
 }

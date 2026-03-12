@@ -6,47 +6,59 @@ import express from 'express';
 import { attachMarketDataRoutes } from './routes.js';
 import type { DailyChartSnapshot, NearbyOptionsChainSnapshot } from './contracts.js';
 
-async function startTestServer() {
+async function startTestServer(options?: {
+  nearbySnapshot?: NearbyOptionsChainSnapshot;
+  nearbySymbol?: string;
+}) {
   let nearbyCalls = 0;
   let chartCalls = 0;
+  const nearbySymbol = options?.nearbySymbol ?? 'NVDA';
+  const nearbySnapshot = options?.nearbySnapshot ?? {
+    symbol: nearbySymbol,
+    spot: 186.03,
+    asOf: '2026-03-12T19:00:00.000Z',
+    requested: {
+      dteMin: 3,
+      dteMax: 7,
+      strikesEachSide: 10,
+    },
+    summary: {
+      selectedExpiryCount: 1,
+      availableExpiries: ['2026-03-16'],
+      atmStrike: 185,
+      strikeWindow: {
+        belowSpot: 10,
+        aboveSpot: 10,
+      },
+      selectionMode: 'STRICT',
+      effectiveDteRange: {
+        dteMin: 4,
+        dteMax: 4,
+      },
+      expansionReasonCode: null,
+      emptyReasonCode: null,
+    },
+    expiries: [
+      {
+        expiryISO: '2026-03-16',
+        dte: 4,
+        atmStrike: 185,
+        calls: [],
+        puts: [],
+      },
+    ],
+  } satisfies NearbyOptionsChainSnapshot;
 
   const app = express();
   attachMarketDataRoutes(app, {
     getNearbyOptionsChainSnapshot: async (symbol, options) => {
       nearbyCalls += 1;
-      assert.equal(symbol, 'NVDA');
+      assert.equal(symbol, nearbySymbol);
       assert.equal(options.dteMin, 3);
       assert.equal(options.dteMax, 7);
       assert.equal(options.strikesEachSide, 10);
 
-      return {
-        symbol,
-        spot: 186.03,
-        asOf: '2026-03-12T19:00:00.000Z',
-        requested: {
-          dteMin: options.dteMin ?? 3,
-          dteMax: options.dteMax ?? 7,
-          strikesEachSide: options.strikesEachSide ?? 10,
-        },
-        summary: {
-          selectedExpiryCount: 1,
-          availableExpiries: ['2026-03-16'],
-          atmStrike: 185,
-          strikeWindow: {
-            belowSpot: 10,
-            aboveSpot: 10,
-          },
-        },
-        expiries: [
-          {
-            expiryISO: '2026-03-16',
-            dte: 4,
-            atmStrike: 185,
-            calls: [],
-            puts: [],
-          },
-        ],
-      } satisfies NearbyOptionsChainSnapshot;
+      return nearbySnapshot;
     },
     getDailyChartSnapshot: async (symbol, options) => {
       chartCalls += 1;
@@ -121,6 +133,103 @@ test('GET /api/options-chain/nearby/:symbol returns a normalized nearby chain sn
     assert.equal(payload.requested.dteMax, 7);
     assert.equal(payload.requested.strikesEachSide, 10);
     assert.equal(harness.getCounts().nearbyCalls, 1);
+  } finally {
+    await new Promise<void>((resolve, reject) => harness.server.close((error) => error ? reject(error) : resolve()));
+  }
+});
+
+test('GET /api/options-chain/nearby/:symbol returns expanded expiries when the requested DTE window is empty', async () => {
+  const harness = await startTestServer({
+    nearbySymbol: 'NU',
+    nearbySnapshot: {
+      symbol: 'NU',
+      spot: 12.54,
+      asOf: '2026-03-12T19:00:00.000Z',
+      requested: {
+        dteMin: 3,
+        dteMax: 7,
+        strikesEachSide: 10,
+      },
+      summary: {
+        selectedExpiryCount: 1,
+        availableExpiries: ['2026-03-20'],
+        atmStrike: 12.5,
+        strikeWindow: {
+          belowSpot: 10,
+          aboveSpot: 10,
+        },
+        selectionMode: 'EXPANDED',
+        effectiveDteRange: {
+          dteMin: 8,
+          dteMax: 8,
+        },
+        expansionReasonCode: 'NEXT_AVAILABLE_EXPIRY',
+        emptyReasonCode: null,
+      },
+      expiries: [
+        {
+          expiryISO: '2026-03-20',
+          dte: 8,
+          atmStrike: 12.5,
+          calls: [],
+          puts: [],
+        },
+      ],
+    },
+  });
+
+  try {
+    const response = await fetch(`${harness.baseUrl}/api/options-chain/nearby/NU?dteMin=3&dteMax=7&strikesEachSide=10`);
+    assert.equal(response.status, 200);
+
+    const payload = await response.json() as NearbyOptionsChainSnapshot;
+    assert.equal(payload.symbol, 'NU');
+    assert.equal(payload.expiries.length, 1);
+    assert.equal(payload.summary.selectionMode, 'EXPANDED');
+    assert.equal(payload.summary.expansionReasonCode, 'NEXT_AVAILABLE_EXPIRY');
+  } finally {
+    await new Promise<void>((resolve, reject) => harness.server.close((error) => error ? reject(error) : resolve()));
+  }
+});
+
+test('GET /api/options-chain/nearby/:symbol keeps 404 only for symbols with no option data at all', async () => {
+  const harness = await startTestServer({
+    nearbySymbol: 'FAKE',
+    nearbySnapshot: {
+      symbol: 'FAKE',
+      spot: null,
+      asOf: '2026-03-12T19:00:00.000Z',
+      requested: {
+        dteMin: 3,
+        dteMax: 7,
+        strikesEachSide: 10,
+      },
+      summary: {
+        selectedExpiryCount: 0,
+        availableExpiries: [],
+        atmStrike: null,
+        strikeWindow: {
+          belowSpot: 10,
+          aboveSpot: 10,
+        },
+        selectionMode: 'STRICT',
+        effectiveDteRange: {
+          dteMin: null,
+          dteMax: null,
+        },
+        expansionReasonCode: null,
+        emptyReasonCode: 'NO_OPTION_DATA',
+      },
+      expiries: [],
+    },
+  });
+
+  try {
+    const response = await fetch(`${harness.baseUrl}/api/options-chain/nearby/FAKE?dteMin=3&dteMax=7&strikesEachSide=10`);
+    assert.equal(response.status, 404);
+
+    const payload = await response.json() as { code?: string };
+    assert.equal(payload.code, 'NO_OPTION_DATA');
   } finally {
     await new Promise<void>((resolve, reject) => harness.server.close((error) => error ? reject(error) : resolve()));
   }

@@ -2,6 +2,8 @@ import {
   DEFAULT_DTE_MAX,
   DEFAULT_DTE_MIN,
   DEFAULT_STRIKES_EACH_SIDE,
+  type NearbyOptionsExpansionReasonCode,
+  type NearbyOptionsEmptyReasonCode,
   type NearbyOptionRow,
   type NearbyOptionsChainSnapshot,
   type NearbyOptionsExpiryBucket,
@@ -42,7 +44,7 @@ export async function getNearbyOptionsChainSnapshot(
   const now = options.now ?? new Date();
   const dteMin = options.dteMin ?? DEFAULT_DTE_MIN;
   const dteMax = options.dteMax ?? DEFAULT_DTE_MAX;
-  const targetExpiries = selectTargetExpiries(initial.base, now, dteMin, dteMax);
+  const targetExpiries = selectRequestedOrExpandedExpiries(initial.base, now, dteMin, dteMax);
   const optionBuckets = await loadOptionBucketsByExpiry({
     symbol: normalizedSymbol,
     initialChain: initial.base,
@@ -76,9 +78,15 @@ export function buildNearbyOptionsChainSnapshot(
   const dteMin = input.dteMin ?? DEFAULT_DTE_MIN;
   const dteMax = input.dteMax ?? DEFAULT_DTE_MAX;
   const strikesEachSide = input.strikesEachSide ?? DEFAULT_STRIKES_EACH_SIDE;
-
-  const expiries = normalizeExpiryBuckets(input.chain?.options ?? [], input.spot, strikesEachSide, now)
-    .filter((bucket) => bucket.dte >= dteMin && bucket.dte <= dteMax);
+  const normalizedExpiries = normalizeExpiryBuckets(input.chain?.options ?? [], input.spot, strikesEachSide, now);
+  const strictExpiries = normalizedExpiries.filter((bucket) => bucket.dte >= dteMin && bucket.dte <= dteMax);
+  const expansion = strictExpiries.length === 0
+    ? selectExpandedExpiryBuckets(normalizedExpiries, dteMin, dteMax)
+    : null;
+  const expiries = strictExpiries.length > 0 ? strictExpiries : expansion?.expiries ?? [];
+  const emptyReasonCode = determineEmptyReasonCode(input.chain, expiries);
+  const effectiveDteRange = buildEffectiveDteRange(expiries);
+  const selectionMode = strictExpiries.length > 0 || expiries.length === 0 ? 'STRICT' : 'EXPANDED';
 
   return {
     symbol: input.symbol.toUpperCase(),
@@ -97,6 +105,10 @@ export function buildNearbyOptionsChainSnapshot(
         belowSpot: strikesEachSide,
         aboveSpot: strikesEachSide,
       },
+      selectionMode,
+      effectiveDteRange,
+      expansionReasonCode: strictExpiries.length > 0 ? null : expansion?.reasonCode ?? null,
+      emptyReasonCode,
     },
     expiries,
   };
@@ -112,6 +124,24 @@ function normalizeExpiryBuckets(
     .map((option) => normalizeExpiryBucket(option, spot, strikesEachSide, now))
     .filter((option): option is NearbyOptionsExpiryBucket => option !== null)
     .sort((left, right) => left.expiryISO.localeCompare(right.expiryISO));
+}
+
+function determineEmptyReasonCode(
+  chain: any,
+  expiries: NearbyOptionsExpiryBucket[],
+): NearbyOptionsEmptyReasonCode | null {
+  if (expiries.length > 0) {
+    return null;
+  }
+
+  const hasSourceExpiries = normalizeExpiryDates(chain?.expirationDates ?? []).length > 0;
+  const hasOptionBuckets = Array.isArray(chain?.options) && chain.options.length > 0;
+
+  if (hasSourceExpiries || hasOptionBuckets) {
+    return 'NO_EXPIRIES_IN_RANGE';
+  }
+
+  return 'NO_OPTION_DATA';
 }
 
 async function loadOptionBucketsByExpiry(input: {
@@ -156,13 +186,34 @@ async function loadOptionBucketsByExpiry(input: {
   return [...bucketsByExpiry.values()];
 }
 
-function selectTargetExpiries(chain: any, now: Date, dteMin: number, dteMax: number): Date[] {
-  return normalizeExpiryDates(chain?.expirationDates ?? [])
+function selectRequestedOrExpandedExpiries(chain: any, now: Date, dteMin: number, dteMax: number): Date[] {
+  const expiries = normalizeExpiryDates(chain?.expirationDates ?? []);
+  const strict = expiries
     .filter((expiry) => {
       const dte = diffCalendarDays(expiry, now);
       return dte >= dteMin && dte <= dteMax;
     })
     .sort((left, right) => left.getTime() - right.getTime());
+
+  if (strict.length > 0) {
+    return strict;
+  }
+
+  const above = expiries
+    .filter((expiry) => diffCalendarDays(expiry, now) > dteMax)
+    .sort((left, right) => left.getTime() - right.getTime());
+  if (above.length > 0) {
+    return [above[0]];
+  }
+
+  const below = expiries
+    .filter((expiry) => diffCalendarDays(expiry, now) < dteMin)
+    .sort((left, right) => right.getTime() - left.getTime());
+  if (below.length > 0) {
+    return [below[0]];
+  }
+
+  return [];
 }
 
 function normalizeExpiryDates(values: unknown[]): Date[] {
@@ -172,6 +223,51 @@ function normalizeExpiryDates(values: unknown[]): Date[] {
     .map((value) => new Date(Date.UTC(value.getUTCFullYear(), value.getUTCMonth(), value.getUTCDate())));
 
   return [...new Map(expiries.map((value) => [value.toISOString().slice(0, 10), value])).values()];
+}
+
+function selectExpandedExpiryBuckets(
+  expiries: NearbyOptionsExpiryBucket[],
+  dteMin: number,
+  dteMax: number,
+): { expiries: NearbyOptionsExpiryBucket[]; reasonCode: NearbyOptionsExpansionReasonCode | null } {
+  const above = expiries
+    .filter((expiry) => expiry.dte > dteMax)
+    .sort((left, right) => left.dte - right.dte);
+  if (above.length > 0) {
+    return {
+      expiries: [above[0]],
+      reasonCode: 'NEXT_AVAILABLE_EXPIRY',
+    };
+  }
+
+  const below = expiries
+    .filter((expiry) => expiry.dte < dteMin)
+    .sort((left, right) => right.dte - left.dte);
+  if (below.length > 0) {
+    return {
+      expiries: [below[0]],
+      reasonCode: 'PREVIOUS_AVAILABLE_EXPIRY',
+    };
+  }
+
+  return {
+    expiries: [],
+    reasonCode: null,
+  };
+}
+
+function buildEffectiveDteRange(expiries: NearbyOptionsExpiryBucket[]): { dteMin: number | null; dteMax: number | null } {
+  if (expiries.length === 0) {
+    return {
+      dteMin: null,
+      dteMax: null,
+    };
+  }
+
+  return {
+    dteMin: Math.min(...expiries.map((expiry) => expiry.dte)),
+    dteMax: Math.max(...expiries.map((expiry) => expiry.dte)),
+  };
 }
 
 function normalizeExpiryBucket(

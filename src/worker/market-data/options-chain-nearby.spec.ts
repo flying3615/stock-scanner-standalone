@@ -87,6 +87,49 @@ test('buildNearbyOptionsChainSnapshot normalizes nullable values and derived mid
   assert.equal(snapshot.expiries[0]?.calls[1]?.lastTradeDate, null);
 });
 
+test('buildNearbyOptionsChainSnapshot expands to the next available expiry when the requested window is empty', () => {
+  const snapshot = buildNearbyOptionsChainSnapshot({
+    symbol: 'NU',
+    spot: 12.54,
+    asOf: now,
+    chain: {
+      expirationDates: [
+        new Date('2026-03-13T00:00:00.000Z'),
+        new Date('2026-03-20T00:00:00.000Z'),
+      ],
+      options: [
+        {
+          expirationDate: new Date('2026-03-13T00:00:00.000Z'),
+          calls: [
+            { contractSymbol: 'NU260313C00012500', strike: 12.5, bid: 0.2, ask: 0.25, lastPrice: 0.22, openInterest: 400, volume: 90, inTheMoney: true, lastTradeDate: now },
+          ],
+          puts: [],
+        },
+        {
+          expirationDate: new Date('2026-03-20T00:00:00.000Z'),
+          calls: [
+            { contractSymbol: 'NU260320C00012500', strike: 12.5, bid: 0.28, ask: 0.32, lastPrice: 0.3, openInterest: 520, volume: 110, inTheMoney: true, lastTradeDate: now },
+          ],
+          puts: [
+            { contractSymbol: 'NU260320P00012500', strike: 12.5, bid: 0.21, ask: 0.24, lastPrice: 0.22, openInterest: 460, volume: 95, inTheMoney: false, lastTradeDate: now },
+          ],
+        },
+      ],
+    },
+    dteMin: 3,
+    dteMax: 7,
+    strikesEachSide: 1,
+    now,
+  });
+
+  assert.deepEqual(snapshot.expiries.map((expiry) => expiry.expiryISO), ['2026-03-20']);
+  assert.equal(snapshot.summary.selectedExpiryCount, 1);
+  assert.equal(snapshot.summary.selectionMode, 'EXPANDED');
+  assert.deepEqual(snapshot.summary.effectiveDteRange, { dteMin: 8, dteMax: 8 });
+  assert.equal(snapshot.summary.expansionReasonCode, 'NEXT_AVAILABLE_EXPIRY');
+  assert.equal(snapshot.summary.emptyReasonCode, null);
+});
+
 test('getNearbyOptionsChainSnapshot fetches additional expiries inside the requested DTE window', async () => {
   const requestedDates: string[] = [];
   const snapshot = await getNearbyOptionsChainSnapshot('NVDA', {
@@ -149,4 +192,69 @@ test('getNearbyOptionsChainSnapshot fetches additional expiries inside the reque
 
   assert.deepEqual(requestedDates, ['initial', '2026-03-16', '2026-03-18']);
   assert.deepEqual(snapshot.expiries.map((expiry) => expiry.expiryISO), ['2026-03-16', '2026-03-18']);
+});
+
+test('getNearbyOptionsChainSnapshot expands to the next available expiry when 3-7 DTE is unavailable', async () => {
+  const requestedDates: string[] = [];
+  const snapshot = await getNearbyOptionsChainSnapshot('NU', {
+    dteMin: 3,
+    dteMax: 7,
+    strikesEachSide: 1,
+    now,
+    fetchOptionsSnapshot: async (_symbol, options) => {
+      const requestOptions = options ?? {};
+      const requestedDate = requestOptions.date?.toISOString().slice(0, 10) ?? 'initial';
+      requestedDates.push(requestedDate);
+
+      if (!requestOptions.date) {
+        return {
+          base: {
+            quote: { regularMarketPrice: 12.54 },
+            expirationDates: [
+              new Date('2026-03-13T00:00:00.000Z'),
+              new Date('2026-03-20T00:00:00.000Z'),
+            ],
+            options: [
+              {
+                expirationDate: new Date('2026-03-13T00:00:00.000Z'),
+                calls: [
+                  { contractSymbol: 'NU260313C00012500', strike: 12.5, bid: 0.2, ask: 0.25, lastPrice: 0.22, openInterest: 400, volume: 90, inTheMoney: true, lastTradeDate: now },
+                ],
+                puts: [],
+              },
+            ],
+          },
+          rmp: 12.54,
+          marketCap: 0,
+          marketState: 'REGULAR',
+          options: [],
+        };
+      }
+
+      return {
+        base: {
+          options: [
+            {
+              expirationDate: requestOptions.date,
+              calls: [
+                { contractSymbol: 'NU260320C00012500', strike: 12.5, bid: 0.28, ask: 0.32, lastPrice: 0.3, openInterest: 520, volume: 110, inTheMoney: true, lastTradeDate: now },
+              ],
+              puts: [
+                { contractSymbol: 'NU260320P00012500', strike: 12.5, bid: 0.21, ask: 0.24, lastPrice: 0.22, openInterest: 460, volume: 95, inTheMoney: false, lastTradeDate: now },
+              ],
+            },
+          ],
+        },
+        rmp: 12.54,
+        marketCap: 0,
+        marketState: 'REGULAR',
+        options: [],
+      };
+    },
+  });
+
+  assert.deepEqual(requestedDates, ['initial', '2026-03-20']);
+  assert.deepEqual(snapshot.expiries.map((expiry) => expiry.expiryISO), ['2026-03-20']);
+  assert.equal(snapshot.summary.selectionMode, 'EXPANDED');
+  assert.equal(snapshot.summary.expansionReasonCode, 'NEXT_AVAILABLE_EXPIRY');
 });

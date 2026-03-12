@@ -5,6 +5,12 @@ export const DEFAULT_DTE_MIN = 3;
 export const DEFAULT_DTE_MAX = 7;
 export const DEFAULT_STRIKES_EACH_SIDE = 10;
 export const DEFAULT_CHART_D1_LOOKBACK = 120;
+export const NEARBY_OPTIONS_EMPTY_REASON_CODES = ['NO_EXPIRIES_IN_RANGE', 'NO_OPTION_DATA'] as const;
+export type NearbyOptionsEmptyReasonCode = (typeof NEARBY_OPTIONS_EMPTY_REASON_CODES)[number];
+export const NEARBY_OPTIONS_SELECTION_MODES = ['STRICT', 'EXPANDED'] as const;
+export type NearbyOptionsSelectionMode = (typeof NEARBY_OPTIONS_SELECTION_MODES)[number];
+export const NEARBY_OPTIONS_EXPANSION_REASON_CODES = ['NEXT_AVAILABLE_EXPIRY', 'PREVIOUS_AVAILABLE_EXPIRY'] as const;
+export type NearbyOptionsExpansionReasonCode = (typeof NEARBY_OPTIONS_EXPANSION_REASON_CODES)[number];
 
 export interface NearbyOptionRow {
   contractSymbol: string | null;
@@ -38,15 +44,22 @@ export interface NearbyOptionsChainSnapshot {
     dteMax: number;
     strikesEachSide: number;
   };
-  summary: {
-    selectedExpiryCount: number;
-    availableExpiries: string[];
-    atmStrike: number | null;
-    strikeWindow: {
-      belowSpot: number;
-      aboveSpot: number;
+    summary: {
+      selectedExpiryCount: number;
+      availableExpiries: string[];
+      atmStrike: number | null;
+      strikeWindow: {
+        belowSpot: number;
+        aboveSpot: number;
+      };
+      selectionMode: NearbyOptionsSelectionMode;
+      effectiveDteRange: {
+        dteMin: number | null;
+        dteMax: number | null;
+      };
+      expansionReasonCode: NearbyOptionsExpansionReasonCode | null;
+      emptyReasonCode: NearbyOptionsEmptyReasonCode | null;
     };
-  };
   expiries: NearbyOptionsExpiryBucket[];
 }
 
