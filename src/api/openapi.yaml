@@ -230,6 +230,225 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
+  /api/options-chain/nearby/{symbol}:
+    get:
+      tags:
+        - Market Data
+      summary: Get normalized nearby options chain
+      description: |
+        Returns a compact, strategy-oriented options chain snapshot grouped by expiry.
+        The payload is normalized for machine readers: expiries are limited to a `dteMin`/`dteMax`
+        window, strikes are trimmed around spot, and calls/puts share one field vocabulary.
+
+        `asOf` is the server-side snapshot generation time, not necessarily the timestamp of the last trade.
+        `mid` is a derived midpoint estimate, not an executable guarantee.
+      operationId: getNearbyOptionsChainSnapshot
+      parameters:
+        - name: symbol
+          in: path
+          required: true
+          description: Underlying symbol to inspect.
+          schema:
+            type: string
+            minLength: 1
+            example: NVDA
+        - name: dteMin
+          in: query
+          required: false
+          description: Minimum days-to-expiration to include in the snapshot.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 60
+            default: 3
+        - name: dteMax
+          in: query
+          required: false
+          description: Maximum days-to-expiration to include in the snapshot.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 60
+            default: 7
+        - name: strikesEachSide
+          in: query
+          required: false
+          description: Number of strikes to retain above and below spot for each selected expiry.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 25
+            default: 10
+      responses:
+        '200':
+          description: Normalized nearby options chain grouped by expiry
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NearbyOptionsChainSnapshot'
+              example:
+                symbol: NVDA
+                spot: 186.03
+                asOf: '2026-03-12T19:00:00.000Z'
+                requested:
+                  dteMin: 3
+                  dteMax: 7
+                  strikesEachSide: 10
+                summary:
+                  selectedExpiryCount: 1
+                  availableExpiries:
+                    - '2026-03-16'
+                  atmStrike: 185
+                  strikeWindow:
+                    belowSpot: 10
+                    aboveSpot: 10
+                expiries:
+                  - expiryISO: '2026-03-16'
+                    dte: 4
+                    atmStrike: 185
+                    calls:
+                      - contractSymbol: NVDA260316C00185000
+                        strike: 185
+                        bid: 6.15
+                        ask: 6.35
+                        mid: 6.25
+                        last: 6.31
+                        delta: 0.52
+                        impliedVolatility: 0.47
+                        openInterest: 8421
+                        volume: 1912
+                        inTheMoney: true
+                        lastTradeDate: '2026-03-12T18:58:14.000Z'
+                    puts:
+                      - contractSymbol: NVDA260316P00185000
+                        strike: 185
+                        bid: 5.85
+                        ask: 6.05
+                        mid: 5.95
+                        last: 6.01
+                        delta: -0.48
+                        impliedVolatility: 0.46
+                        openInterest: 7310
+                        volume: 1654
+                        inTheMoney: false
+                        lastTradeDate: '2026-03-12T18:58:10.000Z'
+        '400':
+          description: Invalid query parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: No nearby options chain data found for the requested symbol or DTE window
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Failed to load nearby options chain snapshot
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/charts/{symbol}/d1:
+    get:
+      tags:
+        - Market Data
+      summary: Get normalized daily chart snapshot
+      description: |
+        Returns recent `1d` OHLCV bars plus the structure indicators already used by the
+        directional credit spread engine. The response returns only the trailing `lookback`
+        bars, but EMA calculations may use a longer internal history so `ema200` stays stable.
+
+        `support` and `resistance` are structural reference levels for downstream reasoning,
+        not trade commands or guaranteed reaction levels.
+      operationId: getDailyChartSnapshot
+      parameters:
+        - name: symbol
+          in: path
+          required: true
+          description: Underlying symbol to inspect.
+          schema:
+            type: string
+            minLength: 1
+            example: NVDA
+        - name: lookback
+          in: query
+          required: false
+          description: Number of trailing daily bars returned to the caller.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 365
+            default: 120
+      responses:
+        '200':
+          description: Normalized daily chart snapshot
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DailyChartSnapshot'
+              example:
+                symbol: NVDA
+                interval: 1d
+                asOf: '2026-03-12T19:00:00.000Z'
+                requested:
+                  lookback: 120
+                summary:
+                  latestClose: 186.03
+                  periodHigh: 195.22
+                  periodLow: 160.1
+                  percentChange: 5.8
+                  averageVolume20: 114000000
+                indicators:
+                  ema20: 182.2
+                  ema50: 176.4
+                  ema200: 149.6
+                  volumeRatio20: 1.42
+                  closeLocationValue: 0.34
+                  upperWickRatio: 0.28
+                  lowerWickRatio: 0.16
+                  support: 176.4
+                  resistance: 191.8
+                bars:
+                  - date: '2026-03-10T00:00:00.000Z'
+                    open: 181.5
+                    high: 185.8
+                    low: 180.7
+                    close: 184.55
+                    volume: 119400000
+                  - date: '2026-03-11T00:00:00.000Z'
+                    open: 184.8
+                    high: 187.1
+                    low: 183.4
+                    close: 185.42
+                    volume: 111700000
+                  - date: '2026-03-12T00:00:00.000Z'
+                    open: 184.1
+                    high: 188.4
+                    low: 183.2
+                    close: 186.03
+                    volume: 138700000
+        '400':
+          description: Invalid query parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: No daily chart data found for the requested symbol
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Failed to load daily chart snapshot
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
   /api/history/{symbol}:
     get:
       tags:
@@ -1063,6 +1282,318 @@ components:
           format: float
           description: Overall sentiment score (-1 to 1)
           example: 0.67
+
+    NearbyOptionsChainSnapshot:
+      type: object
+      description: |
+        Strategy-oriented options chain snapshot centered around spot. `asOf` is when the
+        server built the snapshot, not necessarily the exchange timestamp of the latest quote.
+      properties:
+        symbol:
+          type: string
+          example: NVDA
+        spot:
+          type: number
+          format: float
+          nullable: true
+          description: Normalized reference spot price used to choose the nearby strike window.
+          example: 186.03
+        asOf:
+          type: string
+          format: date-time
+          description: Server-side snapshot generation time.
+          example: '2026-03-12T19:00:00.000Z'
+        requested:
+          $ref: '#/components/schemas/NearbyOptionsChainRequest'
+        summary:
+          $ref: '#/components/schemas/NearbyOptionsChainSummary'
+        expiries:
+          type: array
+          items:
+            $ref: '#/components/schemas/NearbyOptionsExpiryBucket'
+
+    NearbyOptionsChainRequest:
+      type: object
+      properties:
+        dteMin:
+          type: integer
+          example: 3
+        dteMax:
+          type: integer
+          example: 7
+        strikesEachSide:
+          type: integer
+          example: 10
+
+    NearbyOptionsChainSummary:
+      type: object
+      properties:
+        selectedExpiryCount:
+          type: integer
+          example: 1
+        availableExpiries:
+          type: array
+          items:
+            type: string
+            format: date
+          example:
+            - '2026-03-16'
+        atmStrike:
+          type: number
+          format: float
+          nullable: true
+          example: 185
+        strikeWindow:
+          $ref: '#/components/schemas/NearbyOptionsStrikeWindow'
+
+    NearbyOptionsStrikeWindow:
+      type: object
+      properties:
+        belowSpot:
+          type: integer
+          example: 10
+        aboveSpot:
+          type: integer
+          example: 10
+
+    NearbyOptionsExpiryBucket:
+      type: object
+      properties:
+        expiryISO:
+          type: string
+          format: date
+          example: '2026-03-16'
+        dte:
+          type: integer
+          description: Calendar days from `asOf` to the option expiration date.
+          example: 4
+        atmStrike:
+          type: number
+          format: float
+          nullable: true
+          example: 185
+        calls:
+          type: array
+          items:
+            $ref: '#/components/schemas/NearbyOptionRow'
+        puts:
+          type: array
+          items:
+            $ref: '#/components/schemas/NearbyOptionRow'
+
+    NearbyOptionRow:
+      type: object
+      description: |
+        Normalized option quote row for one strike. `mid` is derived from bid/ask when both are
+        present, or falls back to the best available side. It should be treated as an estimate,
+        not a guaranteed fill price.
+      properties:
+        contractSymbol:
+          type: string
+          nullable: true
+          example: NVDA260316C00185000
+        strike:
+          type: number
+          format: float
+          example: 185
+        bid:
+          type: number
+          format: float
+          nullable: true
+          example: 6.15
+        ask:
+          type: number
+          format: float
+          nullable: true
+          example: 6.35
+        mid:
+          type: number
+          format: float
+          nullable: true
+          description: Derived midpoint estimate built from bid and ask when possible.
+          example: 6.25
+        last:
+          type: number
+          format: float
+          nullable: true
+          example: 6.31
+        delta:
+          type: number
+          format: float
+          nullable: true
+          example: 0.52
+        impliedVolatility:
+          type: number
+          format: float
+          nullable: true
+          example: 0.47
+        openInterest:
+          type: integer
+          nullable: true
+          example: 8421
+        volume:
+          type: integer
+          nullable: true
+          example: 1912
+        inTheMoney:
+          type: boolean
+          nullable: true
+          example: true
+        lastTradeDate:
+          type: string
+          format: date-time
+          nullable: true
+          example: '2026-03-12T18:58:14.000Z'
+
+    DailyChartSnapshot:
+      type: object
+      description: |
+        Normalized `1d` OHLCV snapshot plus structural indicators derived from the latest candle
+        and trailing history. Only the requested trailing bars are returned, even when a longer
+        internal history was used to stabilize EMA calculations.
+      properties:
+        symbol:
+          type: string
+          example: NVDA
+        interval:
+          type: string
+          enum: [1d]
+          example: 1d
+        asOf:
+          type: string
+          format: date-time
+          description: Server-side snapshot generation time.
+          example: '2026-03-12T19:00:00.000Z'
+        requested:
+          $ref: '#/components/schemas/DailyChartRequest'
+        summary:
+          $ref: '#/components/schemas/DailyChartSummary'
+        indicators:
+          $ref: '#/components/schemas/DailyChartIndicators'
+        bars:
+          type: array
+          items:
+            $ref: '#/components/schemas/DailyChartBar'
+
+    DailyChartRequest:
+      type: object
+      properties:
+        lookback:
+          type: integer
+          example: 120
+
+    DailyChartSummary:
+      type: object
+      properties:
+        latestClose:
+          type: number
+          format: float
+          nullable: true
+          example: 186.03
+        periodHigh:
+          type: number
+          format: float
+          nullable: true
+          example: 195.22
+        periodLow:
+          type: number
+          format: float
+          nullable: true
+          example: 160.1
+        percentChange:
+          type: number
+          format: float
+          nullable: true
+          description: Percent change from the first returned bar close to the latest close.
+          example: 5.8
+        averageVolume20:
+          type: number
+          format: float
+          nullable: true
+          description: Average daily volume across the prior 20 sessions used for context metrics.
+          example: 114000000
+
+    DailyChartIndicators:
+      type: object
+      properties:
+        ema20:
+          type: number
+          format: float
+          nullable: true
+          example: 182.2
+        ema50:
+          type: number
+          format: float
+          nullable: true
+          example: 176.4
+        ema200:
+          type: number
+          format: float
+          nullable: true
+          example: 149.6
+        volumeRatio20:
+          type: number
+          format: float
+          nullable: true
+          description: Latest bar volume divided by the prior 20-session average volume.
+          example: 1.42
+        closeLocationValue:
+          type: number
+          format: float
+          nullable: true
+          description: Latest close location inside the candle range, normalized to 0-1.
+          example: 0.34
+        upperWickRatio:
+          type: number
+          format: float
+          nullable: true
+          description: Latest upper wick size normalized to the full daily range, 0-1.
+          example: 0.28
+        lowerWickRatio:
+          type: number
+          format: float
+          nullable: true
+          description: Latest lower wick size normalized to the full daily range, 0-1.
+          example: 0.16
+        support:
+          type: number
+          format: float
+          nullable: true
+          description: Structural support reference derived from recent lows and moving averages, not a trade signal.
+          example: 176.4
+        resistance:
+          type: number
+          format: float
+          nullable: true
+          description: Structural resistance reference derived from recent highs and moving averages, not a trade signal.
+          example: 191.8
+
+    DailyChartBar:
+      type: object
+      properties:
+        date:
+          type: string
+          format: date-time
+          example: '2026-03-12T00:00:00.000Z'
+        open:
+          type: number
+          format: float
+          example: 184.1
+        high:
+          type: number
+          format: float
+          example: 188.4
+        low:
+          type: number
+          format: float
+          example: 183.2
+        close:
+          type: number
+          format: float
+          example: 186.03
+        volume:
+          type: integer
+          example: 138700000
 
     HistoryRecord:
       type: object

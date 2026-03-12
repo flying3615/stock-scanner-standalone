@@ -10,6 +10,7 @@ import { saveScanResult, getHistory } from './db/persistence.js';
 import { initScheduler } from './scheduler.js';
 import { getMacroSnapshot } from './worker/macro/macro-monitor.js';
 import { getCallCreditStrategySnapshot, getCreditSpreadStrategySnapshot } from './worker/strategies/call-credit.js';
+import { attachMarketDataRoutes } from './worker/market-data/routes.js';
 import { setupOpenAPI } from './api/openapi-setup.js';
 import {
     buildTokenStatus,
@@ -47,6 +48,10 @@ app.use(express.json());
 
 // Setup OpenAPI documentation
 setupOpenAPI(app);
+attachMarketDataRoutes(app, {
+    cache,
+    polygonApiKey: process.env.POLYGON_API_KEY,
+});
 
 // Market Movers Endpoint
 app.get('/api/movers', async (req, res) => {

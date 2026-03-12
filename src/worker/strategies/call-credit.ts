@@ -5,6 +5,8 @@ import { fetchOptionsData } from '../options/fetch.js';
 import { getDaysToEarnings } from '../options/earnings.js';
 import { fetchDirectChart } from '../yahoo-direct.js';
 import {
+  averageNumbers,
+  calculateLastEma,
   calculateCloseLocationValue,
   calculateLowerWickRatio,
   calculateUpperWickRatio,
@@ -458,7 +460,7 @@ function analyzeDailyStructure(
   const prior10 = priorBars.slice(-10);
   const prior20Low = prior20.length > 0 ? Math.min(...prior20.map((bar) => bar.low)) : latest.low;
   const prior10High = prior10.length > 0 ? Math.max(...prior10.map((bar) => bar.high)) : latest.high;
-  const averageVolume20 = average(prior20.map((bar) => bar.volume).filter((volume) => volume > 0));
+  const averageVolume20 = averageNumbers(prior20.map((bar) => bar.volume).filter((volume) => volume > 0));
   const volumeRatio20 = averageVolume20 > 0 ? latest.volume / averageVolume20 : 1;
   const supportFallback = Math.min(
     ema20 ?? Number.POSITIVE_INFINITY,
@@ -489,27 +491,6 @@ function analyzeDailyStructure(
     heldEma50: ema50 !== null ? latest.close >= ema50 : false,
     heldPrior20Low: latest.close >= prior20Low,
   };
-}
-
-function calculateLastEma(values: number[], period: number): number | null {
-  if (values.length < period) {
-    return null;
-  }
-
-  const multiplier = 2 / (period + 1);
-  let ema = average(values.slice(0, period));
-  for (let index = period; index < values.length; index += 1) {
-    ema = values[index] * multiplier + ema * (1 - multiplier);
-  }
-  return ema;
-}
-
-function average(values: number[]): number {
-  if (values.length === 0) {
-    return 0;
-  }
-
-  return values.reduce((sum, value) => sum + value, 0) / values.length;
 }
 
 function scoreMacroAlignment(macro: MacroSnapshot | null, strategyType: CreditSpreadStrategyType): number {

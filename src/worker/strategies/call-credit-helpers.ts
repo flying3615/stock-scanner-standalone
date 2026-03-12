@@ -38,6 +38,28 @@ export function calculateLowerWickRatio(candle: StrategyCandle): number {
   return Math.max(0, (Math.min(candle.open, candle.close) - candle.low) / range);
 }
 
+export function averageNumbers(values: number[]): number {
+  if (values.length === 0) {
+    return 0;
+  }
+
+  return values.reduce((sum, value) => sum + value, 0) / values.length;
+}
+
+export function calculateLastEma(values: number[], period: number): number | null {
+  if (values.length < period) {
+    return null;
+  }
+
+  const multiplier = 2 / (period + 1);
+  let ema = averageNumbers(values.slice(0, period));
+  for (let index = period; index < values.length; index += 1) {
+    ema = values[index] * multiplier + ema * (1 - multiplier);
+  }
+
+  return ema;
+}
+
 export function scoreBreakdownState(input: BreakdownStateInput): number {
   let score = 0;
 
