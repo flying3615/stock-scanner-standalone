@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { buildNearbyOptionsChainSnapshot } from './options-chain-nearby.js';
+import { buildNearbyOptionsChainSnapshot, getNearbyOptionsChainSnapshot } from './options-chain-nearby.js';
 
 const now = new Date('2026-03-12T15:30:00.000Z');
 
@@ -85,4 +85,68 @@ test('buildNearbyOptionsChainSnapshot normalizes nullable values and derived mid
   assert.equal(snapshot.expiries[0]?.calls[1]?.impliedVolatility, null);
   assert.equal(snapshot.expiries[0]?.calls[1]?.delta, null);
   assert.equal(snapshot.expiries[0]?.calls[1]?.lastTradeDate, null);
+});
+
+test('getNearbyOptionsChainSnapshot fetches additional expiries inside the requested DTE window', async () => {
+  const requestedDates: string[] = [];
+  const snapshot = await getNearbyOptionsChainSnapshot('NVDA', {
+    dteMin: 3,
+    dteMax: 7,
+    strikesEachSide: 1,
+    now,
+    fetchOptionsSnapshot: async (_symbol, options) => {
+      const requestOptions = options ?? {};
+      const requestedDate = requestOptions.date?.toISOString().slice(0, 10) ?? 'initial';
+      requestedDates.push(requestedDate);
+
+      if (!requestOptions.date) {
+        return {
+          base: {
+            quote: { regularMarketPrice: 186.03 },
+            expirationDates: [
+              new Date('2026-03-13T00:00:00.000Z'),
+              new Date('2026-03-16T00:00:00.000Z'),
+              new Date('2026-03-18T00:00:00.000Z'),
+            ],
+            options: [
+              {
+                expirationDate: new Date('2026-03-13T00:00:00.000Z'),
+                calls: [
+                  { contractSymbol: 'NVDA260313C00185000', strike: 185, bid: 4, ask: 4.2, lastPrice: 4.1, delta: 0.5, impliedVolatility: 0.4, openInterest: 1000, volume: 200, inTheMoney: true, lastTradeDate: now },
+                ],
+                puts: [],
+              },
+            ],
+          },
+          rmp: 186.03,
+          marketCap: 0,
+          marketState: 'REGULAR',
+          options: [],
+        };
+      }
+
+      return {
+        base: {
+          options: [
+            {
+              expirationDate: requestOptions.date,
+              calls: [
+                { contractSymbol: `NVDA${requestedDate}C00185000`, strike: 185, bid: 3, ask: 3.4, lastPrice: 3.2, delta: 0.45, impliedVolatility: 0.39, openInterest: 900, volume: 180, inTheMoney: true, lastTradeDate: now },
+              ],
+              puts: [
+                { contractSymbol: `NVDA${requestedDate}P00185000`, strike: 185, bid: 2.8, ask: 3.1, lastPrice: 2.9, delta: -0.47, impliedVolatility: 0.38, openInterest: 870, volume: 175, inTheMoney: false, lastTradeDate: now },
+              ],
+            },
+          ],
+        },
+        rmp: 186.03,
+        marketCap: 0,
+        marketState: 'REGULAR',
+        options: [],
+      };
+    },
+  });
+
+  assert.deepEqual(requestedDates, ['initial', '2026-03-16', '2026-03-18']);
+  assert.deepEqual(snapshot.expiries.map((expiry) => expiry.expiryISO), ['2026-03-16', '2026-03-18']);
 });

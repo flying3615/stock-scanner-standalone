@@ -24,6 +24,8 @@ export interface GetNearbyOptionsChainSnapshotOptions {
   dteMax?: number;
   strikesEachSide?: number;
   polygonApiKey?: string;
+  now?: Date;
+  fetchOptionsSnapshot?: typeof fetchOptionsData;
 }
 
 export async function getNearbyOptionsChainSnapshot(
@@ -31,21 +33,37 @@ export async function getNearbyOptionsChainSnapshot(
   options: GetNearbyOptionsChainSnapshotOptions = {},
 ): Promise<NearbyOptionsChainSnapshot> {
   const normalizedSymbol = symbol.trim().toUpperCase();
-  const chain = await fetchOptionsData(normalizedSymbol, {
+  const fetchOptionsSnapshot = options.fetchOptionsSnapshot ?? fetchOptionsData;
+  const initial = await fetchOptionsSnapshot(normalizedSymbol, {
     polygonApiKey: options.polygonApiKey,
     includeQuote: true,
+  });
+  const now = options.now ?? new Date();
+  const dteMin = options.dteMin ?? DEFAULT_DTE_MIN;
+  const dteMax = options.dteMax ?? DEFAULT_DTE_MAX;
+  const targetExpiries = selectTargetExpiries(initial.base, now, dteMin, dteMax);
+  const optionBuckets = await loadOptionBucketsByExpiry({
+    symbol: normalizedSymbol,
+    initialChain: initial.base,
+    targetExpiries,
+    polygonApiKey: options.polygonApiKey,
+    fetchOptionsSnapshot,
   });
 
   return buildNearbyOptionsChainSnapshot({
     symbol: normalizedSymbol,
-    spot: chain.rmp || normalizeOptionalNumber(chain.base?.quote?.regularMarketPrice),
-    asOf: chain.base?.quote?.regularMarketTime instanceof Date
-      ? chain.base.quote.regularMarketTime
-      : new Date(),
-    chain: chain.base,
-    dteMin: options.dteMin,
-    dteMax: options.dteMax,
+    spot: initial.rmp || normalizeOptionalNumber(initial.base?.quote?.regularMarketPrice),
+    asOf: initial.base?.quote?.regularMarketTime instanceof Date
+      ? initial.base.quote.regularMarketTime
+      : now,
+    chain: {
+      ...initial.base,
+      options: optionBuckets,
+    },
+    dteMin,
+    dteMax,
     strikesEachSide: options.strikesEachSide,
+    now,
   });
 }
 
@@ -93,6 +111,66 @@ function normalizeExpiryBuckets(
     .map((option) => normalizeExpiryBucket(option, spot, strikesEachSide, now))
     .filter((option): option is NearbyOptionsExpiryBucket => option !== null)
     .sort((left, right) => left.expiryISO.localeCompare(right.expiryISO));
+}
+
+async function loadOptionBucketsByExpiry(input: {
+  symbol: string;
+  initialChain: any;
+  targetExpiries: Date[];
+  polygonApiKey?: string;
+  fetchOptionsSnapshot: typeof fetchOptionsData;
+}): Promise<any[]> {
+  const bucketsByExpiry = new Map<string, any>();
+
+  for (const option of input.initialChain?.options ?? []) {
+    const expirationDate = normalizeDate(option?.expirationDate);
+    if (!expirationDate) {
+      continue;
+    }
+
+    bucketsByExpiry.set(expirationDate.toISOString().slice(0, 10), option);
+  }
+
+  for (const expiry of input.targetExpiries) {
+    const expiryISO = expiry.toISOString().slice(0, 10);
+    if (bucketsByExpiry.has(expiryISO)) {
+      continue;
+    }
+
+    const fetched = await input.fetchOptionsSnapshot(input.symbol, {
+      date: expiry,
+      includeQuote: false,
+      polygonApiKey: input.polygonApiKey,
+    });
+    for (const option of fetched.base?.options ?? []) {
+      const expirationDate = normalizeDate(option?.expirationDate);
+      if (!expirationDate) {
+        continue;
+      }
+
+      bucketsByExpiry.set(expirationDate.toISOString().slice(0, 10), option);
+    }
+  }
+
+  return [...bucketsByExpiry.values()];
+}
+
+function selectTargetExpiries(chain: any, now: Date, dteMin: number, dteMax: number): Date[] {
+  return normalizeExpiryDates(chain?.expirationDates ?? [])
+    .filter((expiry) => {
+      const dte = diffCalendarDays(expiry, now);
+      return dte >= dteMin && dte <= dteMax;
+    })
+    .sort((left, right) => left.getTime() - right.getTime());
+}
+
+function normalizeExpiryDates(values: unknown[]): Date[] {
+  const expiries = values
+    .map((value) => normalizeDate(value))
+    .filter((value): value is Date => value !== null)
+    .map((value) => new Date(Date.UTC(value.getUTCFullYear(), value.getUTCMonth(), value.getUTCDate())));
+
+  return [...new Map(expiries.map((value) => [value.toISOString().slice(0, 10), value])).values()];
 }
 
 function normalizeExpiryBucket(
