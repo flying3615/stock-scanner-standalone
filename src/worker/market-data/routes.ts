@@ -64,14 +64,23 @@ export function attachMarketDataRoutes(app: Express, dependencies: MarketDataRou
       });
 
       if (isEmptyNearbySnapshot(snapshot)) {
-        return res.status(404).json({ error: 'No nearby options chain data found' });
+        const emptyReasonCode = getNearbyEmptyReasonCode(snapshot);
+        if (emptyReasonCode === 'NO_OPTION_DATA') {
+          return res.status(404).json({
+            error: 'No nearby options chain data found',
+            code: emptyReasonCode,
+          });
+        }
       }
 
       dependencies.cache.set(cacheKey, snapshot, OPTIONS_CHAIN_CACHE_TTL_SECONDS);
       res.json(snapshot);
     } catch (error) {
       console.error('[API] Failed to build nearby options chain snapshot', error);
-      res.status(500).json({ error: 'Failed to load nearby options chain snapshot' });
+      res.status(500).json({
+        error: 'Failed to load nearby options chain snapshot',
+        code: classifyNearbyOptionsErrorCode(error),
+      });
     }
   });
 
@@ -140,6 +149,15 @@ function isEmptyNearbySnapshot(snapshot: unknown): boolean {
   return !Array.isArray(expiries) || expiries.length === 0;
 }
 
+function getNearbyEmptyReasonCode(snapshot: unknown): string | null {
+  if (!snapshot || typeof snapshot !== 'object') {
+    return null;
+  }
+
+  const summary = (snapshot as { summary?: { emptyReasonCode?: string | null } }).summary;
+  return typeof summary?.emptyReasonCode === 'string' ? summary.emptyReasonCode : null;
+}
+
 function isEmptyChartSnapshot(snapshot: unknown): boolean {
   if (!snapshot || typeof snapshot !== 'object') {
     return true;
@@ -147,4 +165,17 @@ function isEmptyChartSnapshot(snapshot: unknown): boolean {
 
   const bars = (snapshot as { bars?: unknown[] }).bars;
   return !Array.isArray(bars) || bars.length === 0;
+}
+
+function classifyNearbyOptionsErrorCode(error: unknown): string {
+  const message = error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase();
+  if (message.includes('timeout') || message.includes('timed out')) {
+    return 'UPSTREAM_TIMEOUT';
+  }
+
+  if (message.includes('not found') || message.includes('no data')) {
+    return 'DATA_SOURCE_MISSING';
+  }
+
+  return 'UPSTREAM_FETCH_FAILED';
 }

@@ -242,6 +242,8 @@ paths:
 
         `asOf` is the server-side snapshot generation time, not necessarily the timestamp of the last trade.
         `mid` is a derived midpoint estimate, not an executable guarantee.
+        If the symbol has option data but nothing survives the requested DTE window, the route still
+        returns `200` with `expiries: []` and `summary.emptyReasonCode = NO_EXPIRIES_IN_RANGE`.
       operationId: getNearbyOptionsChainSnapshot
       parameters:
         - name: symbol
@@ -302,6 +304,7 @@ paths:
                   strikeWindow:
                     belowSpot: 10
                     aboveSpot: 10
+                  emptyReasonCode: null
                 expiries:
                   - expiryISO: '2026-03-16'
                     dte: 4
@@ -339,13 +342,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
         '404':
-          description: No nearby options chain data found for the requested symbol or DTE window
+          description: No option data exists for the requested symbol
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '500':
-          description: Failed to load nearby options chain snapshot
+          description: Failed to load nearby options chain snapshot from the upstream data source
           content:
             application/json:
               schema:
@@ -1345,6 +1348,19 @@ components:
           example: 185
         strikeWindow:
           $ref: '#/components/schemas/NearbyOptionsStrikeWindow'
+        emptyReasonCode:
+          allOf:
+            - $ref: '#/components/schemas/NearbyOptionsEmptyReasonCode'
+          nullable: true
+          description: |
+            Present only when `expiries` is empty. `NO_EXPIRIES_IN_RANGE` means option data exists
+            but nothing matched the requested DTE window. `NO_OPTION_DATA` means the upstream source
+            exposed no option expiries for this symbol.
+          example: NO_EXPIRIES_IN_RANGE
+
+    NearbyOptionsEmptyReasonCode:
+      type: string
+      enum: [NO_EXPIRIES_IN_RANGE, NO_OPTION_DATA]
 
     NearbyOptionsStrikeWindow:
       type: object
@@ -2203,3 +2219,8 @@ components:
           type: string
           description: Error message
           example: Failed to fetch movers
+        code:
+          type: string
+          nullable: true
+          description: Optional machine-readable error code such as `NO_OPTION_DATA`, `UPSTREAM_TIMEOUT`, or `UPSTREAM_FETCH_FAILED`.
+          example: UPSTREAM_FETCH_FAILED

@@ -2,6 +2,7 @@ import {
   DEFAULT_DTE_MAX,
   DEFAULT_DTE_MIN,
   DEFAULT_STRIKES_EACH_SIDE,
+  type NearbyOptionsEmptyReasonCode,
   type NearbyOptionRow,
   type NearbyOptionsChainSnapshot,
   type NearbyOptionsExpiryBucket,
@@ -79,6 +80,7 @@ export function buildNearbyOptionsChainSnapshot(
 
   const expiries = normalizeExpiryBuckets(input.chain?.options ?? [], input.spot, strikesEachSide, now)
     .filter((bucket) => bucket.dte >= dteMin && bucket.dte <= dteMax);
+  const emptyReasonCode = determineEmptyReasonCode(input.chain, expiries);
 
   return {
     symbol: input.symbol.toUpperCase(),
@@ -97,6 +99,7 @@ export function buildNearbyOptionsChainSnapshot(
         belowSpot: strikesEachSide,
         aboveSpot: strikesEachSide,
       },
+      emptyReasonCode,
     },
     expiries,
   };
@@ -112,6 +115,24 @@ function normalizeExpiryBuckets(
     .map((option) => normalizeExpiryBucket(option, spot, strikesEachSide, now))
     .filter((option): option is NearbyOptionsExpiryBucket => option !== null)
     .sort((left, right) => left.expiryISO.localeCompare(right.expiryISO));
+}
+
+function determineEmptyReasonCode(
+  chain: any,
+  expiries: NearbyOptionsExpiryBucket[],
+): NearbyOptionsEmptyReasonCode | null {
+  if (expiries.length > 0) {
+    return null;
+  }
+
+  const hasSourceExpiries = normalizeExpiryDates(chain?.expirationDates ?? []).length > 0;
+  const hasOptionBuckets = Array.isArray(chain?.options) && chain.options.length > 0;
+
+  if (hasSourceExpiries || hasOptionBuckets) {
+    return 'NO_EXPIRIES_IN_RANGE';
+  }
+
+  return 'NO_OPTION_DATA';
 }
 
 async function loadOptionBucketsByExpiry(input: {

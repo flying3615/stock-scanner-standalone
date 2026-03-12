@@ -145,6 +145,7 @@ export interface MacroSnapshot {
 }
 
 export type MarketDataInterval = '1d';
+export type NearbyOptionsEmptyReasonCode = 'NO_EXPIRIES_IN_RANGE' | 'NO_OPTION_DATA';
 
 export interface NearbyOptionRow {
     contractSymbol: string | null;
@@ -186,6 +187,7 @@ export interface NearbyOptionsChainSnapshot {
             belowSpot: number;
             aboveSpot: number;
         };
+        emptyReasonCode: NearbyOptionsEmptyReasonCode | null;
     };
     expiries: NearbyOptionsExpiryBucket[];
 }

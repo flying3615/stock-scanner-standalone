@@ -87,6 +87,37 @@ test('buildNearbyOptionsChainSnapshot normalizes nullable values and derived mid
   assert.equal(snapshot.expiries[0]?.calls[1]?.lastTradeDate, null);
 });
 
+test('buildNearbyOptionsChainSnapshot preserves empty nearby results with an explicit reason code', () => {
+  const snapshot = buildNearbyOptionsChainSnapshot({
+    symbol: 'NU',
+    spot: 12.54,
+    asOf: now,
+    chain: {
+      expirationDates: [
+        new Date('2026-03-13T00:00:00.000Z'),
+        new Date('2026-03-20T00:00:00.000Z'),
+      ],
+      options: [
+        {
+          expirationDate: new Date('2026-03-13T00:00:00.000Z'),
+          calls: [
+            { contractSymbol: 'NU260313C00012500', strike: 12.5, bid: 0.2, ask: 0.25, lastPrice: 0.22, openInterest: 400, volume: 90, inTheMoney: true, lastTradeDate: now },
+          ],
+          puts: [],
+        },
+      ],
+    },
+    dteMin: 3,
+    dteMax: 7,
+    strikesEachSide: 1,
+    now,
+  });
+
+  assert.deepEqual(snapshot.expiries, []);
+  assert.equal(snapshot.summary.selectedExpiryCount, 0);
+  assert.equal(snapshot.summary.emptyReasonCode, 'NO_EXPIRIES_IN_RANGE');
+});
+
 test('getNearbyOptionsChainSnapshot fetches additional expiries inside the requested DTE window', async () => {
   const requestedDates: string[] = [];
   const snapshot = await getNearbyOptionsChainSnapshot('NVDA', {
