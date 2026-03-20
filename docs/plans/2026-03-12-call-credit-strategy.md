@@ -210,11 +210,14 @@ Expected: FAIL because the service does not exist.
 Create `rankCallCreditCandidates` and `getCallCreditStrategySnapshot` that:
 
 - fetch `most_actives` and `day_losers`
+- merge and deduplicate symbols before any expensive downstream fetches
 - enforce hard filters (`price`, `volume`)
-- compute daily structure features from chart history
-- evaluate event tags from earnings/news
+- compute daily structure features from raw chart history, including local `EMA20`, `EMA50`, `EMA200`, `closeLocationValue`, `upperWickRatio`, `volumeRatio20`, and `prior20Low`
+- evaluate event tags from upcoming earnings plus a recent-news event window, so post-earnings breakdowns are not lost when `daysToEarnings` becomes `null`
+- apply a cheap pre-options ranking pass and cap the options-scanning universe to a fixed size such as `20-25` names
 - fetch macro snapshot once
-- fetch option-chain data per symbol
+- fetch option-chain data only for the capped universe
+- cache the final route payload in `NodeCache` for `300` seconds and reuse per-request symbol results where practical
 - build a sorted candidate list
 
 Add a new route in `src/server.ts`:
@@ -242,6 +245,12 @@ npm run build
 ```
 
 Expected: strategy test PASS and backend TypeScript build PASS.
+
+The strategy test file should explicitly cover:
+
+- duplicate symbols from multiple screeners are deduplicated
+- the pre-options universe cap is enforced before option-chain fan-out
+- a recent post-earnings news event still produces an earnings-driven event tag even when `daysToEarnings` is `null`
 
 **Step 5: Commit**
 
