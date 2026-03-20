@@ -1,4 +1,5 @@
 
+import { PrismaClient } from '@prisma/client';
 import express from 'express';
 import cors from 'cors';
 import { fetchMarketMovers, MoverType } from './worker/scanner/market-movers.js';
@@ -11,8 +12,10 @@ import { initScheduler } from './scheduler.js';
 import { getMacroSnapshot } from './worker/macro/macro-monitor.js';
 import { setupOpenAPI } from './api/openapi-setup.js';
 import { createTigerAdapterClientFromEnv } from './modules/tiger/client.js';
+import { createExecutionRepository } from './db/execution-repository.js';
 import { isCreditSpreadCandidate } from './worker/execution/types.js';
 import { runCreditSpreadEntryOnce } from './worker/execution/run-once.js';
+import { closeManagedCreditSpreadPosition } from './worker/execution/position-manager.js';
 import {
     buildTokenStatus,
     createFinancialJuiceRuntime,
@@ -36,6 +39,7 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = process.env.PORT || 3000;
 const cache = new NodeCache({ stdTTL: 300 }); // Default 5 min TTL
+const prisma = new PrismaClient();
 const NEWS_CACHE_TTL_SECONDS = parsePositiveInteger(process.env.FJ_NEWS_CACHE_TTL_SECONDS, 120);
 const { client: financialJuiceClient, refreshMode: financialJuiceRefreshMode } = createFinancialJuiceRuntime();
 app.locals.tigerAdapterClient = createTigerAdapterClientFromEnv();
@@ -382,6 +386,77 @@ app.post('/api/automation/credit-spreads/run-once', async (req, res) => {
     }
 });
 
+app.get('/api/automation/credit-spreads/intents', async (_req, res) => {
+    try {
+        const intents = await prisma.tradeIntent.findMany({
+            orderBy: { createdAt: 'desc' },
+            include: {
+                tradeExecutions: true,
+                managedPosition: true,
+                riskEvents: true,
+            },
+        });
+        res.json(intents);
+    } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        console.error('[API] Failed to load credit spread intents', message);
+        res.status(500).json({ error: 'Failed to load intents', detail: message });
+    }
+});
+
+app.get('/api/automation/credit-spreads/positions', async (_req, res) => {
+    try {
+        const positions = await prisma.managedPosition.findMany({
+            orderBy: { createdAt: 'desc' },
+            include: {
+                tradeIntent: true,
+                tradeExecutions: true,
+                riskEvents: true,
+            },
+        });
+        res.json(positions);
+    } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        console.error('[API] Failed to load managed credit spread positions', message);
+        res.status(500).json({ error: 'Failed to load positions', detail: message });
+    }
+});
+
+app.post('/api/automation/credit-spreads/positions/:id/close', async (req, res) => {
+    const positionId = Number(req.params.id);
+    if (!Number.isInteger(positionId) || positionId <= 0) {
+        return res.status(400).json({ error: 'Position id must be a positive integer.' });
+    }
+
+    const position = await prisma.managedPosition.findUnique({
+        where: { id: positionId },
+    });
+
+    if (!position) {
+        return res.status(404).json({ error: 'Managed position not found.' });
+    }
+
+    const repository = createExecutionRepository();
+
+    try {
+        const result = await closeManagedCreditSpreadPosition(position, {
+            repository,
+            tigerClient: app.locals.tigerAdapterClient,
+            exitPolicy: buildExitPolicy(req.body?.exitPolicy),
+            account: req.body?.account,
+            tif: req.body?.tif,
+            clientOrderIdPrefix: req.body?.clientOrderIdPrefix,
+        });
+        res.json(result);
+    } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        console.error('[API] Failed to close managed credit spread position', message);
+        res.status(500).json({ error: 'Failed to close position', detail: message });
+    } finally {
+        await repository.disconnect();
+    }
+});
+
 function parsePositiveNumber(raw: unknown, fallback: number): number {
     if (typeof raw === 'number' && Number.isFinite(raw) && raw > 0) {
         return raw;
@@ -393,6 +468,23 @@ function parsePositiveNumber(raw: unknown, fallback: number): number {
         }
     }
     return fallback;
+}
+
+function buildExitPolicy(raw: unknown) {
+    const input = (raw ?? {}) as {
+        takeProfitCreditPct?: unknown;
+        stopLossMultiple?: unknown;
+        forceCloseDte?: unknown;
+        maxHoldMinutes?: unknown;
+    };
+
+    const maxHoldMinutes = parsePositiveNumber(input.maxHoldMinutes, 0);
+    return {
+        takeProfitCreditPct: parsePositiveNumber(input.takeProfitCreditPct, 0.5),
+        stopLossMultiple: parsePositiveNumber(input.stopLossMultiple, 2),
+        forceCloseDte: Math.max(1, Math.floor(parsePositiveNumber(input.forceCloseDte, 1))),
+        ...(maxHoldMinutes > 0 ? { maxHoldMinutes } : {}),
+    };
 }
 
 // Serve Frontend Static Files (Production/Docker)
