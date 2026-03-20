@@ -30,6 +30,8 @@ tags:
     description: Historical scan results
   - name: News
     description: FinancialJuice news retrieval and token management
+  - name: Automation
+    description: Automated credit spread execution and operator controls
 
 paths:
   /api/movers:
@@ -569,6 +571,131 @@ paths:
                 cleared: true
         '500':
           description: Failed to clear token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/automation/credit-spreads/run-once:
+    post:
+      tags:
+        - Automation
+      summary: Run credit spread entry automation once
+      description: Validates candidates, applies local risk checks, previews with Tiger, and places combo entry orders.
+      operationId: runCreditSpreadAutomationOnce
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreditSpreadRunOnceRequest'
+      responses:
+        '200':
+          description: Automation execution summary
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreditSpreadAutomationResult'
+        '400':
+          description: Invalid or missing candidates
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Automation disabled or blocked by paper-only guard
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Execution failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/automation/credit-spreads/intents:
+    get:
+      tags:
+        - Automation
+      summary: List persisted trade intents
+      operationId: listCreditSpreadTradeIntents
+      responses:
+        '200':
+          description: Stored trade intents with executions and risk events
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+
+  /api/automation/credit-spreads/positions:
+    get:
+      tags:
+        - Automation
+      summary: List managed credit spread positions
+      operationId: listManagedCreditSpreadPositions
+      responses:
+        '200':
+          description: Stored managed positions with executions and risk events
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+
+  /api/automation/credit-spreads/positions/{id}/close:
+    post:
+      tags:
+        - Automation
+      summary: Trigger a single managed-position close pass
+      operationId: closeManagedCreditSpreadPosition
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                accountMode:
+                  type: string
+                  enum: [PAPER, LIVE]
+                account:
+                  type: string
+                tif:
+                  type: string
+                  enum: [DAY, GTC]
+      responses:
+        '200':
+          description: Close attempt summary
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreditSpreadAutomationResult'
+        '400':
+          description: Invalid position id
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Managed position not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Close execution failed
           content:
             application/json:
               schema:
@@ -1194,6 +1321,121 @@ components:
         cleared:
           type: boolean
           example: true
+
+    CreditSpreadLeg:
+      type: object
+      required: [symbol, expiry, strike, putCall, action]
+      properties:
+        symbol:
+          type: string
+          example: AAPL
+        expiry:
+          type: string
+          example: '20260327'
+        strike:
+          type: number
+          example: 190
+        putCall:
+          type: string
+          enum: [CALL, PUT]
+        action:
+          type: string
+          enum: [BUY, SELL]
+        multiplier:
+          type: integer
+          example: 100
+
+    CreditSpreadCandidate:
+      type: object
+      required:
+        - strategyType
+        - symbol
+        - expiryISO
+        - quantity
+        - width
+        - targetNetCredit
+        - minAcceptableNetCredit
+        - maxLoss
+        - shortLeg
+        - longLeg
+        - idempotencyKey
+      properties:
+        strategyType:
+          type: string
+          enum: [BEAR_CALL_CREDIT, BULL_PUT_CREDIT]
+        symbol:
+          type: string
+          example: AAPL
+        expiryISO:
+          type: string
+          example: '2026-03-27'
+        quantity:
+          type: integer
+          example: 1
+        width:
+          type: number
+          example: 2
+        targetNetCredit:
+          type: number
+          example: 1.2
+        minAcceptableNetCredit:
+          type: number
+          example: 1.0
+        maxLoss:
+          type: number
+          example: 80
+        shortLeg:
+          $ref: '#/components/schemas/CreditSpreadLeg'
+        longLeg:
+          $ref: '#/components/schemas/CreditSpreadLeg'
+        idempotencyKey:
+          type: string
+          example: AAPL:BULL_PUT_CREDIT:2026-03-27:190.0000:188.0000
+
+    CreditSpreadRunOnceRequest:
+      type: object
+      required: [candidates]
+      properties:
+        accountMode:
+          type: string
+          enum: [PAPER, LIVE]
+        account:
+          type: string
+        tif:
+          type: string
+          enum: [DAY, GTC]
+        repricingStepCredits:
+          type: number
+          example: 0.05
+        candidates:
+          type: array
+          items:
+            $ref: '#/components/schemas/CreditSpreadCandidate'
+
+    CreditSpreadAutomationResult:
+      type: object
+      properties:
+        processed:
+          type: integer
+          example: 1
+        accepted:
+          type: integer
+          example: 1
+        placed:
+          type: integer
+          example: 1
+        skipped:
+          type: integer
+          example: 0
+        failed:
+          type: integer
+          example: 0
+        exitsSubmitted:
+          type: integer
+          example: 0
+        manualInterventions:
+          type: integer
+          example: 0
 
     Error:
       type: object
