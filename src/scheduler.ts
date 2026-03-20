@@ -6,8 +6,10 @@ import { scanSymbolOptions } from './worker/options/options.js';
 import { saveScanResult } from './db/persistence.js';
 import { captureDailySectorStats } from './worker/analytics/sector-trend.js';
 import { setTimeout } from 'timers/promises';
+import { shouldRunCreditSpreadAutomation } from './worker/execution/market-hours.js';
 
 const CRON_SCHEDULE = '30 16 * * 1-5'; // 4:30 PM on weekdays (adjust logic for server timezone if needed)
+const CREDIT_SPREAD_AUTOMATION_SCHEDULE = '*/15 * * * 1-5';
 // Note: node-cron uses system time. If server is UTC, this needs adjustment. 
 // Assuming user's local machine or server configured to ET or we just want "End of Day". 
 // Safe bet is to run it a bit later or check timezone. 
@@ -20,7 +22,19 @@ export function initScheduler() {
         await runDailyBatchScan();
     });
 
+    cron.schedule(CREDIT_SPREAD_AUTOMATION_SCHEDULE, async () => {
+        const now = new Date();
+        if (!shouldRunCreditSpreadAutomation(now)) {
+            return;
+        }
+
+        console.log(`[Scheduler] Credit spread automation tick at ${now.toISOString()}`);
+        // The candidate source remains operator/API-driven in this build.
+        // Keep the scheduler hook in place so paper-only guardrails can be enforced centrally.
+    });
+
     console.log(`[Scheduler] Initialized. Job scheduled for ${CRON_SCHEDULE} (System Time)`);
+    console.log(`[Scheduler] Credit spread automation schedule: ${CREDIT_SPREAD_AUTOMATION_SCHEDULE} (guarded by U.S. regular market hours)`);
 }
 
 async function runDailyBatchScan() {

@@ -17,6 +17,10 @@ import { isCreditSpreadCandidate } from './worker/execution/types.js';
 import { runCreditSpreadEntryOnce } from './worker/execution/run-once.js';
 import { closeManagedCreditSpreadPosition } from './worker/execution/position-manager.js';
 import {
+    assertAccountModeAllowed,
+    loadAutomationFlags,
+} from './worker/execution/market-hours.js';
+import {
     buildTokenStatus,
     createFinancialJuiceRuntime,
     parseBooleanFlag,
@@ -344,6 +348,7 @@ app.delete('/api/news/token', async (_req, res) => {
 app.post('/api/automation/credit-spreads/run-once', async (req, res) => {
     const body = (req.body ?? {}) as {
         candidates?: unknown[];
+        accountMode?: 'PAPER' | 'LIVE';
         account?: string;
         tif?: 'DAY' | 'GTC';
         repricingStepCredits?: number;
@@ -366,7 +371,12 @@ app.post('/api/automation/credit-spreads/run-once', async (req, res) => {
         return res.status(400).json({ error: 'At least one valid credit spread candidate is required.' });
     }
 
+    if (!loadAutomationFlags().enabled) {
+        return res.status(403).json({ error: 'Credit spread automation is disabled.' });
+    }
+
     try {
+        assertAccountModeAllowed(body.accountMode ?? 'PAPER');
         const result = await runCreditSpreadEntryOnce({
             candidates,
             tigerClient: app.locals.tigerAdapterClient,
@@ -439,6 +449,7 @@ app.post('/api/automation/credit-spreads/positions/:id/close', async (req, res) 
     const repository = createExecutionRepository();
 
     try {
+        assertAccountModeAllowed((req.body?.accountMode ?? 'PAPER') as 'PAPER' | 'LIVE');
         const result = await closeManagedCreditSpreadPosition(position, {
             repository,
             tigerClient: app.locals.tigerAdapterClient,
