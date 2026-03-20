@@ -53,6 +53,94 @@ model OptionCombo {
   @@index([snapshotId])
 }
 
+model TradeIntent {
+  id                     Int             @id @default(autoincrement())
+  createdAt              DateTime        @default(now())
+  updatedAt              DateTime        @updatedAt
+  symbol                 String
+  strategyType           String
+  status                 String
+  idempotencyKey         String          @unique
+  expiryISO              String
+  quantity               Int
+  width                  Float
+  targetNetCredit        Float
+  minAcceptableNetCredit Float
+  maxLoss                Float
+  direction              String?
+  setupState             String?
+  blockersJson           String?
+
+  tradeExecutions TradeExecution[]
+  managedPosition  ManagedPosition?
+  riskEvents       RiskEvent[]
+
+  @@index([symbol, strategyType])
+  @@index([status])
+}
+
+model TradeExecution {
+  id             Int             @id @default(autoincrement())
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  tradeIntentId  Int
+  managedPositionId Int?
+  phase          String
+  status         String
+  brokerOrderId  String?
+  quantity       Int
+  limitPrice     Float?
+  filledPrice    Float?
+  notes          String?
+
+  tradeIntent    TradeIntent     @relation(fields: [tradeIntentId], references: [id], onDelete: Cascade)
+  managedPosition ManagedPosition? @relation(fields: [managedPositionId], references: [id], onDelete: SetNull)
+
+  @@index([tradeIntentId])
+  @@index([managedPositionId])
+}
+
+model ManagedPosition {
+  id             Int             @id @default(autoincrement())
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  tradeIntentId  Int             @unique
+  symbol         String
+  strategyType   String
+  status         String
+  idempotencyKey String
+  expiryISO      String
+  quantity       Int
+  width          Float
+  entryCredit    Float?
+  exitCredit     Float?
+  maxLoss        Float
+  closedAt       DateTime?
+
+  tradeIntent    TradeIntent     @relation(fields: [tradeIntentId], references: [id], onDelete: Cascade)
+  tradeExecutions TradeExecution[]
+  riskEvents     RiskEvent[]
+
+  @@index([status])
+  @@index([symbol, strategyType])
+}
+
+model RiskEvent {
+  id               Int            @id @default(autoincrement())
+  createdAt        DateTime       @default(now())
+  tradeIntentId    Int?
+  managedPositionId Int?
+  reasonCode       String
+  message          String?
+
+  tradeIntent      TradeIntent?   @relation(fields: [tradeIntentId], references: [id], onDelete: SetNull)
+  managedPosition   ManagedPosition? @relation(fields: [managedPositionId], references: [id], onDelete: SetNull)
+
+  @@index([tradeIntentId])
+  @@index([managedPositionId])
+  @@index([reasonCode])
+}
+
 model SectorStat {
   id           Int      @id @default(autoincrement())
   date         DateTime @default(now())
