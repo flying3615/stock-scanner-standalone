@@ -11,6 +11,8 @@ import { initScheduler } from './scheduler.js';
 import { getMacroSnapshot } from './worker/macro/macro-monitor.js';
 import { setupOpenAPI } from './api/openapi-setup.js';
 import { createTigerAdapterClientFromEnv } from './modules/tiger/client.js';
+import { isCreditSpreadCandidate } from './worker/execution/types.js';
+import { runCreditSpreadEntryOnce } from './worker/execution/run-once.js';
 import {
     buildTokenStatus,
     createFinancialJuiceRuntime,
@@ -332,6 +334,51 @@ app.delete('/api/news/token', async (_req, res) => {
         const message = error instanceof Error ? error.message : String(error);
         console.error('[API] Failed to clear FinancialJuice token', message);
         res.status(500).json({ error: 'Failed to clear token', detail: message });
+    }
+});
+
+app.post('/api/automation/credit-spreads/run-once', async (req, res) => {
+    const body = (req.body ?? {}) as {
+        candidates?: unknown[];
+        account?: string;
+        tif?: 'DAY' | 'GTC';
+        repricingStepCredits?: number;
+        clientOrderIdPrefix?: string;
+        riskConfig?: {
+            maxRiskPctPerTrade?: number;
+            maxPortfolioRiskPct?: number;
+            cooldownMinutes?: number;
+        };
+        riskContext?: {
+            accountNetValue?: number | null;
+            currentOpenRisk?: number;
+            existingPositionKeys?: string[];
+            cooldownUntilByKey?: Record<string, number>;
+        };
+    };
+
+    const candidates = Array.isArray(body.candidates) ? body.candidates.filter(isCreditSpreadCandidate) : [];
+    if (candidates.length === 0) {
+        return res.status(400).json({ error: 'At least one valid credit spread candidate is required.' });
+    }
+
+    try {
+        const result = await runCreditSpreadEntryOnce({
+            candidates,
+            tigerClient: app.locals.tigerAdapterClient,
+            account: body.account,
+            tif: body.tif,
+            repricingStepCredits: parsePositiveNumber(body.repricingStepCredits, 0.05),
+            clientOrderIdPrefix: body.clientOrderIdPrefix,
+            riskConfig: body.riskConfig,
+            riskContext: body.riskContext,
+        });
+
+        res.json(result);
+    } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        console.error('[API] Failed to run credit spread automation once', message);
+        res.status(500).json({ error: 'Failed to run credit spread automation', detail: message });
     }
 });
 
