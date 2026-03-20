@@ -36,7 +36,10 @@ export type ExitPolicy = {
 export type RiskCheckReasonCode =
   | 'ACCOUNT_NET_VALUE_MISSING'
   | 'RISK_BUDGET_EXCEEDED'
-  | 'BROKER_PREVIEW_REJECTED';
+  | 'BROKER_PREVIEW_REJECTED'
+  | 'TRADE_SIZE_TOO_SMALL'
+  | 'DUPLICATE_POSITION_KEY'
+  | 'COOLDOWN_ACTIVE';
 
 export type RiskCheckResult = {
   passed: boolean;
