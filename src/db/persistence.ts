@@ -111,7 +111,7 @@ export async function saveScanResult(symbol: string, result: any, valueAnalysis?
 export async function getHistory(symbol: string) {
     try {
         const snapshots = await prisma.stockSnapshot.findMany({
-            where: { symbol: symbol.toUpperCase() },
+            where: { symbol: normalizeSymbol(symbol) },
             orderBy: { date: 'asc' },
             include: {
                 combos: true // Include combos for details if needed
@@ -122,4 +122,8 @@ export async function getHistory(symbol: string) {
         console.error(`[Persistence] Failed to get history for ${symbol}:`, error);
         return [];
     }
+}
+
+function normalizeSymbol(symbol: string): string {
+    return symbol.toUpperCase();
 }

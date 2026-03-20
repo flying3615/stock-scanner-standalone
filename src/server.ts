@@ -1,4 +1,5 @@
 
+import { PrismaClient } from '@prisma/client';
 import express from 'express';
 import cors from 'cors';
 import { fetchMarketMovers, MoverType } from './worker/scanner/market-movers.js';
@@ -12,6 +13,15 @@ import { getMacroSnapshot } from './worker/macro/macro-monitor.js';
 import { getCallCreditStrategySnapshot, getCreditSpreadStrategySnapshot } from './worker/strategies/call-credit.js';
 import { attachMarketDataRoutes } from './worker/market-data/routes.js';
 import { setupOpenAPI } from './api/openapi-setup.js';
+import { createTigerAdapterClientFromEnv } from './modules/tiger/client.js';
+import { createExecutionRepository } from './db/execution-repository.js';
+import { isCreditSpreadCandidate } from './worker/execution/types.js';
+import { runCreditSpreadEntryOnce } from './worker/execution/run-once.js';
+import { closeManagedCreditSpreadPosition } from './worker/execution/position-manager.js';
+import {
+    assertAccountModeAllowed,
+    loadAutomationFlags,
+} from './worker/execution/market-hours.js';
 import {
     buildTokenStatus,
     createFinancialJuiceRuntime,
@@ -36,8 +46,10 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = process.env.PORT || 3000;
 const cache = new NodeCache({ stdTTL: 300 }); // Default 5 min TTL
+const prisma = new PrismaClient();
 const NEWS_CACHE_TTL_SECONDS = parsePositiveInteger(process.env.FJ_NEWS_CACHE_TTL_SECONDS, 120);
 const { client: financialJuiceClient, refreshMode: financialJuiceRefreshMode } = createFinancialJuiceRuntime();
+app.locals.tigerAdapterClient = createTigerAdapterClientFromEnv();
 console.log(`[News] FinancialJuice client initialized (refresh mode: ${financialJuiceRefreshMode})`);
 
 // Start Scheduler
@@ -378,6 +390,129 @@ app.delete('/api/news/token', async (_req, res) => {
     }
 });
 
+app.post('/api/automation/credit-spreads/run-once', async (req, res) => {
+    const body = (req.body ?? {}) as {
+        candidates?: unknown[];
+        accountMode?: 'PAPER' | 'LIVE';
+        account?: string;
+        tif?: 'DAY' | 'GTC';
+        repricingStepCredits?: number;
+        clientOrderIdPrefix?: string;
+        riskConfig?: {
+            maxRiskPctPerTrade?: number;
+            maxPortfolioRiskPct?: number;
+            cooldownMinutes?: number;
+        };
+        riskContext?: {
+            accountNetValue?: number | null;
+            currentOpenRisk?: number;
+            existingPositionKeys?: string[];
+            cooldownUntilByKey?: Record<string, number>;
+        };
+    };
+
+    const candidates = Array.isArray(body.candidates) ? body.candidates.filter(isCreditSpreadCandidate) : [];
+    if (candidates.length === 0) {
+        return res.status(400).json({ error: 'At least one valid credit spread candidate is required.' });
+    }
+
+    if (!loadAutomationFlags().enabled) {
+        return res.status(403).json({ error: 'Credit spread automation is disabled.' });
+    }
+
+    try {
+        assertAccountModeAllowed(body.accountMode ?? 'PAPER');
+        const result = await runCreditSpreadEntryOnce({
+            candidates,
+            tigerClient: app.locals.tigerAdapterClient,
+            account: body.account,
+            tif: body.tif,
+            repricingStepCredits: parsePositiveNumber(body.repricingStepCredits, 0.05),
+            clientOrderIdPrefix: body.clientOrderIdPrefix,
+            riskConfig: body.riskConfig,
+            riskContext: body.riskContext,
+        });
+
+        res.json(result);
+    } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        console.error('[API] Failed to run credit spread automation once', message);
+        res.status(500).json({ error: 'Failed to run credit spread automation', detail: message });
+    }
+});
+
+app.get('/api/automation/credit-spreads/intents', async (_req, res) => {
+    try {
+        const intents = await prisma.tradeIntent.findMany({
+            orderBy: { createdAt: 'desc' },
+            include: {
+                tradeExecutions: true,
+                managedPosition: true,
+                riskEvents: true,
+            },
+        });
+        res.json(intents);
+    } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        console.error('[API] Failed to load credit spread intents', message);
+        res.status(500).json({ error: 'Failed to load intents', detail: message });
+    }
+});
+
+app.get('/api/automation/credit-spreads/positions', async (_req, res) => {
+    try {
+        const positions = await prisma.managedPosition.findMany({
+            orderBy: { createdAt: 'desc' },
+            include: {
+                tradeIntent: true,
+                tradeExecutions: true,
+                riskEvents: true,
+            },
+        });
+        res.json(positions);
+    } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        console.error('[API] Failed to load managed credit spread positions', message);
+        res.status(500).json({ error: 'Failed to load positions', detail: message });
+    }
+});
+
+app.post('/api/automation/credit-spreads/positions/:id/close', async (req, res) => {
+    const positionId = Number(req.params.id);
+    if (!Number.isInteger(positionId) || positionId <= 0) {
+        return res.status(400).json({ error: 'Position id must be a positive integer.' });
+    }
+
+    const position = await prisma.managedPosition.findUnique({
+        where: { id: positionId },
+    });
+
+    if (!position) {
+        return res.status(404).json({ error: 'Managed position not found.' });
+    }
+
+    const repository = createExecutionRepository();
+
+    try {
+        assertAccountModeAllowed((req.body?.accountMode ?? 'PAPER') as 'PAPER' | 'LIVE');
+        const result = await closeManagedCreditSpreadPosition(position, {
+            repository,
+            tigerClient: app.locals.tigerAdapterClient,
+            exitPolicy: buildExitPolicy(req.body?.exitPolicy),
+            account: req.body?.account,
+            tif: req.body?.tif,
+            clientOrderIdPrefix: req.body?.clientOrderIdPrefix,
+        });
+        res.json(result);
+    } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        console.error('[API] Failed to close managed credit spread position', message);
+        res.status(500).json({ error: 'Failed to close position', detail: message });
+    } finally {
+        await repository.disconnect();
+    }
+});
+
 function parsePositiveNumber(raw: unknown, fallback: number): number {
     if (typeof raw === 'number' && Number.isFinite(raw) && raw > 0) {
         return raw;
@@ -415,6 +550,23 @@ function filterStrategySnapshot(
         candidates: snapshot.candidates
             .filter((candidate) => !options.setupState || candidate.setupState === options.setupState)
             .slice(0, options.limit),
+    };
+}
+
+function buildExitPolicy(raw: unknown) {
+    const input = (raw ?? {}) as {
+        takeProfitCreditPct?: unknown;
+        stopLossMultiple?: unknown;
+        forceCloseDte?: unknown;
+        maxHoldMinutes?: unknown;
+    };
+
+    const maxHoldMinutes = parsePositiveNumber(input.maxHoldMinutes, 0);
+    return {
+        takeProfitCreditPct: parsePositiveNumber(input.takeProfitCreditPct, 0.5),
+        stopLossMultiple: parsePositiveNumber(input.stopLossMultiple, 2),
+        forceCloseDte: Math.max(1, Math.floor(parsePositiveNumber(input.forceCloseDte, 1))),
+        ...(maxHoldMinutes > 0 ? { maxHoldMinutes } : {}),
     };
 }
 
