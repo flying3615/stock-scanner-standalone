@@ -2,6 +2,11 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
+  type TigerAdapterComboCancelResponse,
+  type TigerAdapterComboPlaceResponse,
+  type TigerAdapterComboPreviewResponse,
+  type TigerAdapterOptionOrder,
+  type TigerAdapterOptionPosition,
   TigerAdapterError,
   createTigerAdapterClient,
   createTigerAdapterClientFromEnv,
@@ -24,7 +29,7 @@ test('preview request payload mapping', async () => {
     },
   });
 
-  await client.previewCombo({
+  const preview: TigerAdapterComboPreviewResponse = await client.previewCombo({
     account: 'ACC-1',
     strategyType: 'BULL_PUT_CREDIT',
     symbol: 'AAPL',
@@ -38,6 +43,7 @@ test('preview request payload mapping', async () => {
     ],
   });
 
+  assert.equal(preview.ok, true);
   assert.equal(String(capturedInput), 'http://127.0.0.1:8000/api/v1/options/preview-combo');
   assert.equal(capturedInit?.method, 'POST');
   assert.equal(capturedInit?.headers instanceof Headers ? capturedInit.headers.get('authorization') : undefined, 'Bearer secret-token');
@@ -72,7 +78,7 @@ test('combo placement payload mapping', async () => {
     },
   });
 
-  await client.placeCombo({
+  const place: TigerAdapterComboPlaceResponse = await client.placeCombo({
     account: 'ACC-1',
     strategyType: 'BEAR_CALL_CREDIT',
     symbol: 'AAPL',
@@ -86,6 +92,7 @@ test('combo placement payload mapping', async () => {
     ],
   });
 
+  assert.equal(place.orderId, 'T-100');
   const body = JSON.parse(String(capturedInit?.body));
   assert.equal(capturedInit?.method, 'POST');
   assert.deepEqual(body, {
@@ -117,8 +124,9 @@ test('authorization header handling', async () => {
     },
   });
 
-  await client.getOptionOrders();
+  const orders: TigerAdapterOptionOrder[] = await client.getOptionOrders();
 
+  assert.deepEqual(orders, []);
   assert.equal(capturedHeaders?.get('authorization'), null);
   assert.equal(capturedHeaders?.get('content-type'), 'application/json');
 });
@@ -134,12 +142,14 @@ test('non-200 responses return normalized errors', async () => {
   });
 
   await assert.rejects(
-    async () =>
-      client.cancelCombo({
+    async () => {
+      const cancel: TigerAdapterComboCancelResponse = await client.cancelCombo({
         account: 'ACC-1',
         orderId: 'T-100',
         symbol: 'AAPL',
-      }),
+      });
+      assert.ok(cancel);
+    },
     (error: unknown) => {
       assert.ok(error instanceof TigerAdapterError);
       assert.equal(error.status, 502);
@@ -170,7 +180,8 @@ test('client can be created from env', async () => {
   });
 
   assert.ok(client);
-  await client.getOptionOrders();
+  const orders: TigerAdapterOptionOrder[] = await client.getOptionOrders();
   assert.equal(String(capturedInput), 'http://tiger.local:8000/api/v1/options/orders');
   assert.equal(capturedInit?.headers instanceof Headers ? capturedInit.headers.get('authorization') : undefined, 'Bearer env-token');
+  assert.deepEqual(orders, []);
 });

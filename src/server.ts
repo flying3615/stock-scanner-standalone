@@ -10,6 +10,7 @@ import { saveScanResult, getHistory } from './db/persistence.js';
 import { initScheduler } from './scheduler.js';
 import { getMacroSnapshot } from './worker/macro/macro-monitor.js';
 import { setupOpenAPI } from './api/openapi-setup.js';
+import { createTigerAdapterClientFromEnv } from './modules/tiger/client.js';
 import {
     buildTokenStatus,
     createFinancialJuiceRuntime,
@@ -35,6 +36,7 @@ const PORT = process.env.PORT || 3000;
 const cache = new NodeCache({ stdTTL: 300 }); // Default 5 min TTL
 const NEWS_CACHE_TTL_SECONDS = parsePositiveInteger(process.env.FJ_NEWS_CACHE_TTL_SECONDS, 120);
 const { client: financialJuiceClient, refreshMode: financialJuiceRefreshMode } = createFinancialJuiceRuntime();
+app.locals.tigerAdapterClient = createTigerAdapterClientFromEnv();
 console.log(`[News] FinancialJuice client initialized (refresh mode: ${financialJuiceRefreshMode})`);
 
 // Start Scheduler

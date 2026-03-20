@@ -25,6 +25,54 @@ export type TigerAdapterComboCancelRequest = {
   symbol: string;
 };
 
+export type TigerAdapterComboPreviewResponse = {
+  ok?: boolean;
+  message?: string;
+  previewId?: string;
+  estimatedMargin?: number;
+  requiredBuyingPower?: number;
+  raw?: unknown;
+};
+
+export type TigerAdapterComboPlaceResponse = {
+  orderId?: string;
+  status?: string;
+  message?: string;
+  raw?: unknown;
+};
+
+export type TigerAdapterComboCancelResponse = {
+  orderId?: string;
+  status?: string;
+  message?: string;
+  raw?: unknown;
+};
+
+export type TigerAdapterOptionPosition = {
+  symbol?: string;
+  quantity?: number;
+  putCall?: 'CALL' | 'PUT';
+  strike?: number;
+  expiry?: string;
+  averageCost?: number;
+  marketPrice?: number;
+  marketValue?: number;
+  raw?: unknown;
+};
+
+export type TigerAdapterOptionOrder = {
+  orderId?: string;
+  symbol?: string;
+  status?: string;
+  quantity?: number;
+  filledQuantity?: number;
+  action?: 'BUY' | 'SELL';
+  orderType?: string;
+  limitPrice?: number;
+  netPrice?: number;
+  raw?: unknown;
+};
+
 export type TigerAdapterClientOptions = {
   baseUrl: string;
   token?: string;
@@ -53,11 +101,11 @@ export class TigerAdapterError extends Error {
 }
 
 export type TigerAdapterClient = {
-  previewCombo(request: TigerAdapterComboRequest): Promise<unknown>;
-  placeCombo(request: TigerAdapterComboRequest): Promise<unknown>;
-  cancelCombo(request: TigerAdapterComboCancelRequest): Promise<unknown>;
-  getOptionPositions(): Promise<unknown>;
-  getOptionOrders(): Promise<unknown>;
+  previewCombo(request: TigerAdapterComboRequest): Promise<TigerAdapterComboPreviewResponse>;
+  placeCombo(request: TigerAdapterComboRequest): Promise<TigerAdapterComboPlaceResponse>;
+  cancelCombo(request: TigerAdapterComboCancelRequest): Promise<TigerAdapterComboCancelResponse>;
+  getOptionPositions(): Promise<TigerAdapterOptionPosition[]>;
+  getOptionOrders(): Promise<TigerAdapterOptionOrder[]>;
 };
 
 const DEFAULT_BASE_URL = 'http://127.0.0.1:8000';
@@ -69,34 +117,34 @@ export function createTigerAdapterClient(options: TigerAdapterClientOptions): Ti
 
   return {
     previewCombo(request) {
-      return requestJson(fetchImpl, baseUrl, '/api/v1/options/preview-combo', {
+      return requestJson<TigerAdapterComboPreviewResponse>(fetchImpl, baseUrl, '/api/v1/options/preview-combo', {
         method: 'POST',
         token,
         body: request,
       });
     },
     placeCombo(request) {
-      return requestJson(fetchImpl, baseUrl, '/api/v1/options/place-combo', {
+      return requestJson<TigerAdapterComboPlaceResponse>(fetchImpl, baseUrl, '/api/v1/options/place-combo', {
         method: 'POST',
         token,
         body: request,
       });
     },
     cancelCombo(request) {
-      return requestJson(fetchImpl, baseUrl, '/api/v1/options/cancel-combo', {
+      return requestJson<TigerAdapterComboCancelResponse>(fetchImpl, baseUrl, '/api/v1/options/cancel-combo', {
         method: 'POST',
         token,
         body: request,
       });
     },
     getOptionPositions() {
-      return requestJson(fetchImpl, baseUrl, '/api/v1/options/positions', {
+      return requestJson<TigerAdapterOptionPosition[]>(fetchImpl, baseUrl, '/api/v1/options/positions', {
         method: 'GET',
         token,
       });
     },
     getOptionOrders() {
-      return requestJson(fetchImpl, baseUrl, '/api/v1/options/orders', {
+      return requestJson<TigerAdapterOptionOrder[]>(fetchImpl, baseUrl, '/api/v1/options/orders', {
         method: 'GET',
         token,
       });
@@ -116,7 +164,7 @@ export function createTigerAdapterClientFromEnv(
   });
 }
 
-async function requestJson(
+async function requestJson<T>(
   fetchImpl: typeof fetch,
   baseUrl: string,
   endpoint: string,
@@ -125,7 +173,7 @@ async function requestJson(
     token?: string;
     body?: unknown;
   }
-): Promise<unknown> {
+): Promise<T> {
   const response = await fetchImpl(makeUrl(baseUrl, endpoint), {
     method: options.method,
     headers: buildHeaders(options.token),
@@ -137,7 +185,7 @@ async function requestJson(
     throw new TigerAdapterError(response.status, endpoint, parsedBody);
   }
 
-  return parsedBody;
+  return parsedBody as T;
 }
 
 function buildHeaders(token?: string): Headers {
