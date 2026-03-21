@@ -2,6 +2,18 @@
 
 This service scans equities and options, stores market snapshots in SQLite via Prisma, and now includes a paper-trading execution layer for `BEAR_CALL_CREDIT` and `BULL_PUT_CREDIT` spreads through the sibling `tiger_adapter` service.
 
+## VPS Deployment
+
+`stock-scanner-standalone` is the bundled VPS host for `tiger-adapter`. The compose stack keeps the scanner on the internal adapter URL `http://tiger-adapter:8000` and mounts the adapter config from the current repo.
+
+To enable bundled adapter deployment on VPS:
+
+- set `TIGER_ADAPTER_TOKEN` in `.env`
+- place the Tiger OpenAPI properties file at `./tiger_adapter/config/api.properties`
+- the `tiger-adapter` container reads that file through `TIGER_CONFIG_PATH=/app/config/api.properties`
+
+If `TIGER_ADAPTER_TOKEN` is unset or `./tiger_adapter/config/api.properties` is missing, `deploy-vps.sh` soft-fails the adapter side and starts `stock-scanner` without auto-trading.
+
 ## Development
 
 ```bash
@@ -81,3 +93,10 @@ Example run-once payload:
 ```
 
 See [docs/plans/2026-03-20-auto-credit-spread-ops-checklist.md](/Users/yufei/Documents/git/stock-scanner-standalone/.worktrees/auto-credit-spread-execution/docs/plans/2026-03-20-auto-credit-spread-ops-checklist.md) before enabling the scheduler on a paper account.
+
+## Bundled Adapter Notes
+
+- Compose mounts `./tiger_adapter/config:/app/config:ro` into the adapter container.
+- The expected host-side config file is `./tiger_adapter/config/api.properties`.
+- `deploy-vps.sh` uses `TIGER_ADAPTER_TOKEN` plus that config file as the adapter enablement gate.
+- The scanner can still be deployed by itself when the adapter config is absent.

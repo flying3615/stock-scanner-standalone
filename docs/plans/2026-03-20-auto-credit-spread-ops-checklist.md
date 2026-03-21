@@ -1,12 +1,15 @@
 # Auto Credit Spread Ops Checklist
 
-Use this checklist before enabling recurring automation against a Tiger paper account.
+Use this checklist before enabling recurring automation against a Tiger paper account. In this repo, `stock-scanner-standalone` is the bundled VPS host for `tiger-adapter`.
 
 ## Preflight
 
 - `AUTO_CREDIT_SPREAD_AUTOMATION_ENABLED=false` until manual run-once verification is complete
 - `AUTO_CREDIT_SPREAD_PAPER_ONLY=true`
-- `TIGER_ADAPTER_URL` and `TIGER_ADAPTER_TOKEN` point at the paper-trading adapter deployment
+- `TIGER_ADAPTER_URL=http://tiger-adapter:8000` for the bundled adapter network path
+- `TIGER_ADAPTER_TOKEN` is set in `.env`
+- `./tiger_adapter/config/api.properties` exists on the host before starting the bundled adapter
+- compose mounts `./tiger_adapter/config:/app/config:ro` and the adapter reads `TIGER_CONFIG_PATH=/app/config/api.properties`
 - Prisma migration for execution tables has been applied
 - `npm run build` passes in `stock-scanner-standalone`
 - `pytest tests/test_api.py -k "combo or option_positions or option_orders" -v` passes in `tiger_adapter`
@@ -41,3 +44,9 @@ Use this checklist before enabling recurring automation against a Tiger paper ac
 - No unresolved `MANUAL_INTERVENTION_REQUIRED` positions remain
 - Risk sizing matches intended account percentage limits
 - Only after all of the above should live-trading requirements be discussed
+
+## Bundled Deployment Soft-Fail
+
+- If `TIGER_ADAPTER_TOKEN` is missing, `deploy-vps.sh` skips the bundled adapter and only starts `stock-scanner`
+- If `./tiger_adapter/config/api.properties` is missing, `deploy-vps.sh` skips the bundled adapter and only starts `stock-scanner`
+- Treat that mode as scanner-only deployment with auto-trading disabled

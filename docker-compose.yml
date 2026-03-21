@@ -34,11 +34,10 @@ services:
     expose:
       - "8000"
     environment:
-      - TIGER_OPEN_API_KEY=${TIGER_OPEN_API_KEY:-}
-      - TIGER_OPEN_API_SECRET=${TIGER_OPEN_API_SECRET:-}
-      - TIGER_OPEN_API_PASS=${TIGER_OPEN_API_PASS:-}
+      - TIGER_CONFIG_PATH=/app/config/api.properties
       - TIGER_ADAPTER_TOKEN=${TIGER_ADAPTER_TOKEN:-}
     volumes:
+      - ./tiger_adapter/config:/app/config:ro
       - tiger-logs:/app/logs
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]

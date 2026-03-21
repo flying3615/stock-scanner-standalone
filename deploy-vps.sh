@@ -32,12 +32,18 @@ if ! docker network inspect proxy-net >/dev/null 2>&1; then
 fi
 
 # Check if Tiger Adapter is configured
+TIGER_ADAPTER_CONFIG_FILE="${TIGER_ADAPTER_CONFIG_FILE:-./tiger_adapter/config/api.properties}"
 TIGER_ENABLED=false
-if [ -n "${TIGER_OPEN_API_KEY:-}" ] && [ -n "${TIGER_OPEN_API_SECRET:-}" ] && [ -n "${TIGER_ADAPTER_TOKEN:-}" ]; then
+if [ -n "${TIGER_ADAPTER_TOKEN:-}" ] && [ -f "$TIGER_ADAPTER_CONFIG_FILE" ]; then
   TIGER_ENABLED=true
-  echo "Tiger Adapter configuration detected, will start tiger-adapter service"
+  echo "Tiger Adapter configuration detected at $TIGER_ADAPTER_CONFIG_FILE, will start tiger-adapter service"
 else
-  echo "Tiger Adapter not configured (missing TIGER_OPEN_API_KEY, TIGER_OPEN_API_SECRET, or TIGER_ADAPTER_TOKEN)"
+  if [ -z "${TIGER_ADAPTER_TOKEN:-}" ]; then
+    echo "Tiger Adapter not configured (missing TIGER_ADAPTER_TOKEN)"
+  fi
+  if [ ! -f "$TIGER_ADAPTER_CONFIG_FILE" ]; then
+    echo "Tiger Adapter config file not found at $TIGER_ADAPTER_CONFIG_FILE"
+  fi
   echo "Stock scanner will run without auto-trading capabilities"
 fi
 
@@ -60,7 +66,7 @@ if [ -f docker-compose.yml ]; then
     # Start only stock-scanner (tiger-adapter will fail health checks gracefully)
     docker compose up -d --no-build stock-scanner || {
       echo "Note: tiger-adapter service not started due to missing configuration"
-      echo "To enable auto-trading, add Tiger credentials to .env and re-run deploy"
+      echo "To enable auto-trading, set TIGER_ADAPTER_TOKEN and add $TIGER_ADAPTER_CONFIG_FILE before re-running deploy"
     }
     echo ""
     echo "=== Deployment Summary ==="
