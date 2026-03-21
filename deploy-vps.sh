@@ -64,7 +64,7 @@ if [ -f docker-compose.yml ]; then
     docker compose pull stock-scanner
 
     # Start only stock-scanner
-    docker compose up -d --no-build stock-scanner || {
+    docker compose up -d --no-build --no-deps stock-scanner || {
       echo "Note: tiger-adapter service not started due to missing configuration"
       echo "To enable auto-trading, set TIGER_ADAPTER_TOKEN and add $TIGER_ADAPTER_CONFIG_FILE before re-running deploy"
     }
