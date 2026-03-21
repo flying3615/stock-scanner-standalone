@@ -7,6 +7,7 @@ import type { ExitPolicy } from './types.js';
 function makeManagedPosition(overrides?: Record<string, unknown>) {
   return {
     id: 1,
+    tradeIntentId: 11,
     symbol: 'AAPL',
     strategyType: 'BULL_PUT_CREDIT',
     status: 'OPEN',
@@ -171,4 +172,68 @@ test('reconciliation mismatch transitions position to manual intervention requir
   assert.equal(result.manualInterventions, 1);
   assert.equal(repository.updates[0].status, 'MANUAL_INTERVENTION_REQUIRED');
   assert.equal(repository.riskEvents[0].reasonCode, 'POSITION_RECONCILIATION_MISMATCH');
+});
+
+test('exit execution persists originating trade intent id', async () => {
+  const repository = createRepositoryStub();
+
+  await manageCreditSpreadPositions({
+    loadManagedPositions: async () => [makeManagedPosition({ tradeIntentId: 77 })],
+    repository,
+    tigerClient: {
+      async getOptionPositions() {
+        return [
+          { symbol: 'AAPL', putCall: 'PUT', strike: 190, expiry: '20260327', quantity: -1, marketPrice: 0.4 },
+          { symbol: 'AAPL', putCall: 'PUT', strike: 188, expiry: '20260327', quantity: 1, marketPrice: 0.1 },
+        ];
+      },
+      async getOptionOrders() {
+        return [];
+      },
+      async placeCombo() {
+        return { orderId: 'EXIT-4', status: 'SUBMITTED' };
+      },
+    },
+    exitPolicy: makeExitPolicy(),
+    now: () => new Date('2026-03-25T15:00:00Z'),
+  });
+
+  assert.equal(repository.executions.length, 1);
+  assert.equal(repository.executions[0].tradeIntentId, 77);
+});
+
+test('working exit order for another spread on same symbol does not block exit', async () => {
+  const repository = createRepositoryStub();
+
+  const result = await manageCreditSpreadPositions({
+    loadManagedPositions: async () => [makeManagedPosition()],
+    repository,
+    tigerClient: {
+      async getOptionPositions() {
+        return [
+          { symbol: 'AAPL', putCall: 'PUT', strike: 190, expiry: '20260327', quantity: -1, marketPrice: 0.4 },
+          { symbol: 'AAPL', putCall: 'PUT', strike: 188, expiry: '20260327', quantity: 1, marketPrice: 0.1 },
+        ];
+      },
+      async getOptionOrders() {
+        return [
+          {
+            symbol: 'AAPL',
+            status: 'SUBMITTED',
+            raw: {
+              clientOrderId: 'exit:AAPL:BULL_PUT_CREDIT:2026-04-17:195.0000:190.0000',
+            },
+          },
+        ];
+      },
+      async placeCombo() {
+        return { orderId: 'EXIT-5', status: 'SUBMITTED' };
+      },
+    },
+    exitPolicy: makeExitPolicy(),
+    now: () => new Date('2026-03-25T15:00:00Z'),
+  });
+
+  assert.equal(result.exitsSubmitted, 1);
+  assert.equal(repository.executions.length, 1);
 });

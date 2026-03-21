@@ -8,6 +8,7 @@ import type { ExitPolicy } from './types.js';
 
 export type ManagedSpreadPositionRecord = {
   id: number;
+  tradeIntentId: number;
   symbol: string;
   strategyType: string;
   status: string;
@@ -31,7 +32,7 @@ export type PositionManagerRepository = {
     closedAt?: Date | null;
   }): Promise<unknown>;
   createTradeExecution(input: {
-    tradeIntentId?: number;
+    tradeIntentId: number;
     managedPositionId?: number | null;
     phase: string;
     status: string;
@@ -102,7 +103,7 @@ export async function manageCreditSpreadPositions(
       continue;
     }
 
-    if (hasWorkingExitOrder(managedPosition.symbol, optionOrders)) {
+    if (hasWorkingExitOrder(managedPosition, optionOrders)) {
       result.skipped += 1;
       continue;
     }
@@ -157,6 +158,7 @@ export async function manageCreditSpreadPositions(
       exitCredit: closeDebit,
     });
     await options.repository.createTradeExecution({
+      tradeIntentId: managedPosition.tradeIntentId,
       managedPositionId: managedPosition.id,
       phase: 'EXIT',
       status: closeOrder.status ?? 'SUBMITTED',
@@ -222,12 +224,29 @@ async function flagManualIntervention(
   });
 }
 
-function hasWorkingExitOrder(symbol: string, orders: TigerAdapterOptionOrder[]): boolean {
+function hasWorkingExitOrder(position: ManagedSpreadPositionRecord, orders: TigerAdapterOptionOrder[]): boolean {
+  const expectedClientOrderId = `exit:${sanitizeClientOrderKey(position.idempotencyKey)}`;
+
   return orders.some((order) => {
-    if ((order.symbol ?? '').toUpperCase() !== symbol.toUpperCase()) return false;
     const status = (order.status ?? '').toUpperCase();
-    return status === 'NEW' || status === 'PENDING' || status === 'SUBMITTED';
+    if (status !== 'NEW' && status !== 'PENDING' && status !== 'SUBMITTED') return false;
+
+    return extractClientOrderId(order)?.includes(expectedClientOrderId) ?? false;
   });
+}
+
+function extractClientOrderId(order: TigerAdapterOptionOrder): string | undefined {
+  const raw = order.raw;
+  if (!raw || typeof raw !== 'object') {
+    return undefined;
+  }
+
+  const value = (raw as Record<string, unknown>).clientOrderId;
+  return typeof value === 'string' && value.length > 0 ? value : undefined;
+}
+
+function sanitizeClientOrderKey(idempotencyKey: string): string {
+  return idempotencyKey.replace(/[^A-Za-z0-9:_-]/g, '-');
 }
 
 function matchLiveLegs(

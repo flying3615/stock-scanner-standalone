@@ -159,11 +159,18 @@ export async function executeCreditSpreadEntries(
       continue;
     }
 
-    const placement = await tryPlaceWithRepricing(
-      sizedCandidate,
-      options,
-      tradeIntent.id
-    );
+    let placement: TigerAdapterComboPlaceResponse & { finalNetCredit: number };
+    try {
+      placement = await tryPlaceWithRepricing(
+        sizedCandidate,
+        options,
+        tradeIntent.id
+      );
+    } catch (error) {
+      await rejectPlacement(options.repository, tradeIntent.id, error);
+      result.failed += 1;
+      continue;
+    }
 
     if (!placement.orderId) {
       await options.repository.updateTradeIntent({
@@ -226,6 +233,23 @@ async function rejectPreview(
   await repository.createRiskEvent({
     tradeIntentId,
     reasonCode: 'BROKER_PREVIEW_REJECTED',
+    message,
+  });
+}
+
+async function rejectPlacement(
+  repository: EntryExecutionRepository,
+  tradeIntentId: number,
+  error: unknown
+) {
+  const message = error instanceof Error ? error.message : String(error);
+  await repository.updateTradeIntent({
+    id: tradeIntentId,
+    status: 'FAILED',
+  });
+  await repository.createRiskEvent({
+    tradeIntentId,
+    reasonCode: 'BROKER_ORDER_SUBMISSION_FAILED',
     message,
   });
 }

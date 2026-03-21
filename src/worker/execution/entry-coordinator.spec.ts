@@ -224,3 +224,64 @@ test('failed preview stores a risk event', async () => {
   assert.equal(repository.riskEvents[0].reasonCode, 'BROKER_PREVIEW_REJECTED');
   assert.match(String(repository.riskEvents[0].message), /insufficient buying power/i);
 });
+
+test('placement exception fails only that candidate and continues batch', async () => {
+  const repository = createRepositoryStub();
+  const firstCandidate = makeCandidate();
+  const secondCandidate = makeCandidate({
+    symbol: 'MSFT',
+    idempotencyKey: 'MSFT:BULL_PUT_CREDIT:2026-03-27:390.0000:385.0000',
+    shortLeg: {
+      symbol: 'MSFT',
+      expiry: '20260327',
+      strike: 390,
+      putCall: 'PUT',
+      action: 'SELL',
+      multiplier: 100,
+    },
+    longLeg: {
+      symbol: 'MSFT',
+      expiry: '20260327',
+      strike: 385,
+      putCall: 'PUT',
+      action: 'BUY',
+      multiplier: 100,
+    },
+  });
+
+  const result = await executeCreditSpreadEntries({
+    loadCandidates: async () => [firstCandidate, secondCandidate],
+    getRiskContext: async () => ({
+      accountNetValue: 20_000,
+      currentOpenRisk: 0,
+      existingPositionKeys: [],
+    }),
+    repository,
+    tigerClient: {
+      async previewCombo() {
+        return { ok: true };
+      },
+      async placeCombo(request) {
+        if (request.symbol === 'AAPL') {
+          throw new Error('broker unavailable');
+        }
+
+        return { orderId: 'T-101', status: 'SUBMITTED' };
+      },
+    },
+    riskConfig: {
+      maxRiskPctPerTrade: 0.02,
+      maxPortfolioRiskPct: 0.1,
+      cooldownMinutes: 60,
+    },
+  });
+
+  assert.equal(result.processed, 2);
+  assert.equal(result.accepted, 2);
+  assert.equal(result.failed, 1);
+  assert.equal(result.placed, 1);
+  assert.equal(repository.positions.length, 1);
+  assert.equal(repository.riskEvents.length, 1);
+  assert.equal(repository.riskEvents[0].reasonCode, 'BROKER_ORDER_SUBMISSION_FAILED');
+  assert.match(String(repository.riskEvents[0].message), /broker unavailable/i);
+});

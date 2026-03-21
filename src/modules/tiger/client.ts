@@ -70,7 +70,10 @@ export type TigerAdapterOptionOrder = {
   orderType?: string;
   limitPrice?: number;
   netPrice?: number;
-  raw?: unknown;
+  raw?: {
+    clientOrderId?: string;
+    [key: string]: unknown;
+  } | unknown;
 };
 
 export type TigerAdapterClientOptions = {
