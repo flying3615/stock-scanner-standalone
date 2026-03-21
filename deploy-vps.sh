@@ -9,14 +9,12 @@ if [ -d .git ]; then
   git pull
 fi
 
-# Load GHCR credentials from .env if not already set
-if [ -z "${GHCR_USER:-}" ] || [ -z "${GHCR_TOKEN:-}" ]; then
-  if [ -f .env ]; then
-    # shellcheck disable=SC1091
-    set -a
-    . ./.env
-    set +a
-  fi
+# Load deployment env from .env if present.
+if [ -f .env ]; then
+  # shellcheck disable=SC1091
+  set -a
+  . ./.env
+  set +a
 fi
 
 # Optional GHCR login (for private images)
@@ -49,9 +47,9 @@ fi
 
 # Pull & start
 if [ -f docker-compose.yml ]; then
-  docker compose pull
-  
   if [ "$TIGER_ENABLED" = true ]; then
+    docker compose pull stock-scanner tiger-adapter
+
     # Start both services
     docker compose up -d --no-build
     echo ""
@@ -63,7 +61,9 @@ if [ -f docker-compose.yml ]; then
     echo "  docker compose ps"
     echo "  docker compose logs -f tiger-adapter"
   else
-    # Start only stock-scanner (tiger-adapter will fail health checks gracefully)
+    docker compose pull stock-scanner
+
+    # Start only stock-scanner
     docker compose up -d --no-build stock-scanner || {
       echo "Note: tiger-adapter service not started due to missing configuration"
       echo "To enable auto-trading, set TIGER_ADAPTER_TOKEN and add $TIGER_ADAPTER_CONFIG_FILE before re-running deploy"
