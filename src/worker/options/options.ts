@@ -1,4 +1,4 @@
-import { OptionsAnalysis, OptionSignalLite } from '../shared.js';
+import { OptionsAnalysis, OptionSignalLite, OptionsScanResult } from '../shared.js';
 import { calculateMoneyFlowStrength, withinDays } from '../util.js';
 import { fetchOptionsData } from './fetch.js';
 import { processExpirations } from './processing.js';
@@ -77,26 +77,7 @@ export async function scanSymbolOptions(
     minNotionalNoRatio?: number;
     minRatio?: number;
   }
-): Promise<{
-  moneyFlowStrength: number;
-  signals: OptionSignalLite[];
-  sentiment: {
-    symbol: string;
-    bullishNotional: number;
-    bearishNotional: number;
-    totalNotional: number;
-    putNotional: number;
-    callNotional: number;
-    putCallRatio: number;
-    askBias: number;
-    sentiment: number;
-  };
-  optionsAnalysis: OptionsAnalysis;
-  isRegular: boolean;
-  freshWindowMins: number;
-  marketState: string;
-  rmp: number;
-}> {
+): Promise<OptionsScanResult> {
   if (debug) console.log(`[scanSymbolOptions] Start for symbol: ${symbol}`);
 
   const [
@@ -232,6 +213,7 @@ export async function scanSymbolOptions(
   }
 
   return {
+    symbol,
     signals,
     sentiment,
     isRegular,

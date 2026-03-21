@@ -108,6 +108,12 @@ Hard filters before scoring:
 - options chain exists and near-term expirations are available
 - exclude symbols with unusable spreads or stale chain data
 
+Before any option-chain fetches, the strategy service should:
+
+- deduplicate symbols across `most_actives` and `day_losers`
+- apply a cheap pre-options ranking pass
+- cap the expensive options-scanning universe to a fixed size such as `20-25` names
+
 This matches the actual trading constraints better than a broad theoretical universe.
 
 ## Breakdown Detection
@@ -128,6 +134,8 @@ For each candidate, compute:
 - `brokeEma200` if enough history exists
 - `brokePrior20Low`
 
+For V1, these daily breakdown features should come from a single strategy-specific daily feature builder fed by raw chart candles. That builder should compute `EMA20`, `EMA50`, and `EMA200` directly from daily closes rather than relying on the existing shared `calculateTechnicalIndicators()` helper, which currently only exposes EMAs through `EMA120`. This keeps the scoring source explicit and avoids a silent fallback where `brokeEma200` gets omitted.
+
 ### Bearish Structure Interpretation
 
 Strong breakdown proxies:
@@ -146,9 +154,12 @@ The strategy should prioritize downside moves with a reason, not random noisy re
 
 ### V1 Event Inputs
 
-- `daysToEarnings` already produced in options analysis
+- `daysToEarnings` as a forward-looking risk flag for upcoming earnings, not as a post-earnings detector
+- `recentEventWindow` derived from same-day or recent symbol news headlines over the last `1-3` trading days
 - large gap-down behavior from daily candles
 - lightweight symbol-news keyword tags from existing news search
+
+Because the current earnings helper only reports the next earnings date, V1 should not rely on `daysToEarnings` to identify post-earnings breakdowns. The intended `EARNINGS_MISS` / `GUIDANCE_CUT` tags should come from recent-news classification plus gap-down behavior on the breakdown candle.
 
 ### Suggested Event Tags
 
@@ -401,6 +412,8 @@ Recommended caching:
 - cache the final `/api/strategies/call-credit` payload for `300` seconds
 - cache per-symbol intermediate results if repeated in the same request cycle
 - cap the candidate universe to prevent excessive options requests
+
+These are implementation requirements, not optional optimizations. Without deduplication, a capped pre-options universe, and route-level caching, the endpoint will likely become too slow and fragile on high-volatility days.
 
 ## Error Handling
 

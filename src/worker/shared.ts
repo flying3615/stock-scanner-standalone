@@ -143,6 +143,28 @@ export type OptionsAnalysis = {
   };
 };
 
+export type OptionsScanResult = {
+  symbol: string;
+  moneyFlowStrength: number;
+  signals: OptionSignalLite[];
+  sentiment: {
+    symbol: string;
+    bullishNotional: number;
+    bearishNotional: number;
+    totalNotional: number;
+    putNotional: number;
+    callNotional: number;
+    putCallRatio: number;
+    askBias: number;
+    sentiment: number;
+  };
+  optionsAnalysis: OptionsAnalysis;
+  isRegular: boolean;
+  freshWindowMins: number;
+  marketState: string;
+  rmp: number;
+};
+
 export type OptionsScanParams = {
   pool: PoolType;
   date: string; // YYYY-MM-DD
