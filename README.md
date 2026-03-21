@@ -92,7 +92,7 @@ Example run-once payload:
 }
 ```
 
-See [docs/plans/2026-03-20-auto-credit-spread-ops-checklist.md](/Users/yufei/Documents/git/stock-scanner-standalone/.worktrees/auto-credit-spread-execution/docs/plans/2026-03-20-auto-credit-spread-ops-checklist.md) before enabling the scheduler on a paper account.
+See [docs/plans/2026-03-20-auto-credit-spread-ops-checklist.md](docs/plans/2026-03-20-auto-credit-spread-ops-checklist.md) before enabling the scheduler on a paper account.
 
 ## Bundled Adapter Notes
 
