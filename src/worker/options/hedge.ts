@@ -64,16 +64,30 @@ export function computeHedgeScoreForSignal(
       tags.push('largeOTMCall');
     }
 
-    // High IV + buy direction suggests conviction directional bet (not a hedge)
+    // High IV + buy: distinguish call (speculative) vs put (likely hedging in panic)
     if (s.iv > 0.5 && s.direction === 'buy') {
-      score -= weights.highIVDirectional;
-      tags.push('highIVDirectional');
+      if (s.type === 'call') {
+        // High IV + buy call = conviction speculative bet
+        score -= weights.highIVDirectional;
+        tags.push('highIVDirectionalCall');
+      } else {
+        // High IV + buy put = likely panic hedging (IV spikes when demand for puts surges)
+        score += weights.highIVDirectional;
+        tags.push('highIVHedgePut');
+      }
     }
 
-    // Institutional traders are more likely to make directional bets than hedges
+    // Institutional traders: distinguish by option type
     if (s.traderType === 'institutional') {
-      score -= weights.institutionalTrader;
-      tags.push('institutional');
+      if (s.type === 'put' && s.direction === 'buy') {
+        // Institutional put buying is the hallmark of portfolio hedging
+        score += weights.institutionalTrader;
+        tags.push('institutionalHedge');
+      } else if (s.type === 'call' && s.direction === 'buy') {
+        // Institutional call buying is more likely directional
+        score -= weights.institutionalTrader;
+        tags.push('institutionalDirectional');
+      }
     }
 
     // Money flow adjustment

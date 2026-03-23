@@ -86,7 +86,7 @@ export async function scanSymbolOptions(
     daysToEarnings,
   ] = await Promise.all([
     fetchOptionsData(symbol, { includeQuote: true, debug, polygonApiKey: scanCfg?.polygonApiKey }),
-    calculateMoneyFlowStrength(symbol, 7),
+    calculateMoneyFlowStrength(symbol, 14),
     getDaysToEarnings(symbol),
   ]);
 

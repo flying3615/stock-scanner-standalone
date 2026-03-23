@@ -140,14 +140,9 @@ export function convertDailyDataToFetchedOptionsData(
   const result = Object.entries(dailyData)
     .map(([date, data]: [string, DailyDataRecord]) => {
       const totalVolume = data.callVolume + data.putVolume;
-      const callOpenInterest =
-        data.callOiCount > 0
-          ? Math.round(data.callOpenInterest / data.callOiCount)
-          : 0;
-      const putOpenInterest =
-        data.putOiCount > 0
-          ? Math.round(data.putOpenInterest / data.putOiCount)
-          : 0;
+      // Use total OI (not average per contract) for accurate trend analysis
+      const callOpenInterest = data.callOpenInterest;
+      const putOpenInterest = data.putOpenInterest;
       const totalOpenInterest = callOpenInterest + putOpenInterest;
       const weightedAverageIv =
         data.volumeForIv > 0 ? data.ivSum / data.volumeForIv : 0;

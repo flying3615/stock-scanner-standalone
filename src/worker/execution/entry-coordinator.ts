@@ -117,6 +117,8 @@ export async function executeCreditSpreadEntries(
       continue;
     }
 
+    // Accumulate reserved risk so subsequent candidates see the updated portfolio exposure
+    riskContext.currentOpenRisk += riskDecision.riskCheck.reservedRisk ?? 0;
     result.accepted += 1;
 
     const sizedCandidate = riskDecision.sizedCandidate;
@@ -268,14 +270,16 @@ async function tryPlaceWithRepricing(
   let lastResponse: TigerAdapterComboPlaceResponse & { finalNetCredit: number } = {
     finalNetCredit: netPrice,
   };
+  let attempt = 0;
 
   while (netPrice + 1e-9 >= floor) {
+    attempt += 1;
     const response = await options.tigerClient.placeCombo(
       buildComboRequest(candidate, {
         netPrice,
         account: options.account,
         tif: options.tif ?? 'DAY',
-        clientOrderId: buildClientOrderId(options.clientOrderIdPrefix, candidate.idempotencyKey, 'entry'),
+        clientOrderId: buildClientOrderId(options.clientOrderIdPrefix, candidate.idempotencyKey, `entry-r${attempt}`),
       })
     );
 

@@ -34,10 +34,13 @@ function calculateEnhancedDirection(
   // 4. Calculate confidence
   let confidence = Math.max(0, 1 - spreadPenalty * 0.6);
 
-  // 5. Edge cases that force neutral
-  if (last === ask || last === bid) {
-    // Exactly at bid/ask is ambiguous
-    confidence *= 0.5;
+  // 5. Trades AT bid/ask are strong directional signals (aggressive buyer/seller)
+  if (last >= ask && ask > 0) {
+    // Trade at or above ask = aggressive buyer lifting the offer
+    confidence = Math.min(1, confidence * 1.3);
+  } else if (last <= bid && bid > 0) {
+    // Trade at or below bid = aggressive seller hitting the bid
+    confidence = Math.min(1, confidence * 1.3);
   }
 
   // Boost confidence for new positions with clear direction
@@ -71,15 +74,20 @@ function classifyTraderType(
   // Equivalent contracts = notional / contract value
   const equivalentContracts = contractValue > 0 ? notional / contractValue : 0;
 
-  // Institutional threshold: 500 contracts (≈ $5M at $100 stock)
-  // Also use absolute floor for very low-priced stocks
-  if (equivalentContracts >= 500 || notional >= 2_000_000) {
+  // Institutional threshold: 100+ contracts or $500K+ notional
+  // These align with industry-standard sweep detection thresholds
+  if (equivalentContracts >= 100 || notional >= 500_000) {
     return 'institutional';
   }
 
-  // Retail threshold: < 20 contracts (≈ $200K at $100 stock)
-  // Also use absolute ceiling for very high-priced stocks
-  if (equivalentContracts < 20 && notional < 100_000) {
+  // Also flag as institutional if single-trade volume is very high relative to OI
+  // (volume param here is contract volume for this specific strike)
+  if (volume >= 500 && notional >= 200_000) {
+    return 'institutional';
+  }
+
+  // Retail threshold: < 10 contracts and < $50K notional
+  if (equivalentContracts < 10 && notional < 50_000) {
     return 'retail';
   }
 

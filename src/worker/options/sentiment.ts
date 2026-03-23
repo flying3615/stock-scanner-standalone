@@ -262,10 +262,18 @@ function calculateDecayedMetrics(
     }
 
     // 2. Check if the signal should be included for sentiment calculation based on the policy
+    const isAuxShortPut =
+      policy === 'buyersOnlyAuxSP' &&
+      s.direction === 'sell' &&
+      s.type === 'put' &&
+      Number.isFinite(s.moneyness) &&
+      s.moneyness <= 0.95;
+
     const isSignalForSentiment =
       policy === 'standard' ||
       (policy === 'buyersOnly' && s.direction === 'buy') ||
-      (policy === 'buyersOnlyAuxSP' && s.direction === 'buy');
+      (policy === 'buyersOnlyAuxSP' && s.direction === 'buy') ||
+      isAuxShortPut; // Allow OTM short puts through for aux SP contribution
 
     if (!isSignalForSentiment) {
       continue; // Skip sentiment-specific calculations if excluded by policy
