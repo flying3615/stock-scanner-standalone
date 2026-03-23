@@ -160,14 +160,14 @@ test('non-200 responses return normalized errors', async () => {
   );
 });
 
-test('client can be created from env', async () => {
+test('client can be created from env using TIGER_ADAPTER_API_KEY', async () => {
   let capturedInput: RequestInfo | URL | undefined;
   let capturedInit: RequestInit | undefined;
 
   const client = createTigerAdapterClientFromEnv({
     env: {
       TIGER_ADAPTER_URL: 'http://tiger.local:8000',
-      TIGER_ADAPTER_TOKEN: 'env-token',
+      TIGER_ADAPTER_API_KEY: 'env-api-key',
     },
     fetchImpl: async (input, init) => {
       capturedInput = input;
@@ -182,6 +182,29 @@ test('client can be created from env', async () => {
   assert.ok(client);
   const orders: TigerAdapterOptionOrder[] = await client.getOptionOrders();
   assert.equal(String(capturedInput), 'http://tiger.local:8000/api/v1/options/orders');
-  assert.equal(capturedInit?.headers instanceof Headers ? capturedInit.headers.get('authorization') : undefined, 'Bearer env-token');
+  assert.equal(capturedInit?.headers instanceof Headers ? capturedInit.headers.get('authorization') : undefined, 'Bearer env-api-key');
+  assert.deepEqual(orders, []);
+});
+
+test('client ignores the legacy Tiger adapter token env', async () => {
+  let capturedInit: RequestInit | undefined;
+  const legacyEnvName = ['TIGER', 'ADAPTER', 'TOKEN'].join('_');
+
+  const client = createTigerAdapterClientFromEnv({
+    env: {
+      TIGER_ADAPTER_URL: 'http://tiger.local:8000',
+      [legacyEnvName]: 'legacy-token',
+    },
+    fetchImpl: async (_input, init) => {
+      capturedInit = init;
+      return new Response(JSON.stringify([]), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      });
+    },
+  });
+
+  const orders: TigerAdapterOptionOrder[] = await client.getOptionOrders();
+  assert.equal(capturedInit?.headers instanceof Headers ? capturedInit.headers.get('authorization') : undefined, null);
   assert.deepEqual(orders, []);
 });

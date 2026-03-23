@@ -7,7 +7,7 @@ Use this checklist before enabling recurring automation against a Tiger paper ac
 - `AUTO_CREDIT_SPREAD_AUTOMATION_ENABLED=false` until manual run-once verification is complete
 - `AUTO_CREDIT_SPREAD_PAPER_ONLY=true`
 - `TIGER_ADAPTER_URL=http://tiger-adapter:8000` for the bundled adapter network path
-- `TIGER_ADAPTER_TOKEN` is set in `.env`
+- `TIGER_ADAPTER_API_KEY` is set in `.env`
 - `./tiger_adapter/config/api.properties` exists on the host before starting the bundled adapter
 - compose mounts `./tiger_adapter/config:/app/config:ro` and the adapter reads `TIGER_CONFIG_PATH=/app/config/api.properties`
 - Prisma migration for execution tables has been applied
@@ -47,6 +47,6 @@ Use this checklist before enabling recurring automation against a Tiger paper ac
 
 ## Bundled Deployment Soft-Fail
 
-- If `TIGER_ADAPTER_TOKEN` is missing, `deploy-vps.sh` skips the bundled adapter and only starts `stock-scanner`
+- If `TIGER_ADAPTER_API_KEY` is missing, `deploy-vps.sh` skips the bundled adapter and only starts `stock-scanner`
 - If `./tiger_adapter/config/api.properties` is missing, `deploy-vps.sh` skips the bundled adapter and only starts `stock-scanner`
 - Treat that mode as scanner-only deployment with auto-trading disabled

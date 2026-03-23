@@ -8,11 +8,11 @@ This service scans equities and options, stores market snapshots in SQLite via P
 
 To enable bundled adapter deployment on VPS:
 
-- set `TIGER_ADAPTER_TOKEN` in `.env`
+- set `TIGER_ADAPTER_API_KEY` in `.env`
 - place the Tiger OpenAPI properties file at `./tiger_adapter/config/api.properties`
 - the `tiger-adapter` container reads that file through `TIGER_CONFIG_PATH=/app/config/api.properties`
 
-If `TIGER_ADAPTER_TOKEN` is unset or `./tiger_adapter/config/api.properties` is missing, `deploy-vps.sh` soft-fails the adapter side and starts `stock-scanner` without auto-trading.
+If `TIGER_ADAPTER_API_KEY` is unset or `./tiger_adapter/config/api.properties` is missing, `deploy-vps.sh` soft-fails the adapter side and starts `stock-scanner` without auto-trading.
 
 ## Development
 
@@ -29,7 +29,7 @@ Important environment variables:
 - `POLYGON_API_KEY`
 - `DATABASE_URL`
 - `TIGER_ADAPTER_URL`
-- `TIGER_ADAPTER_TOKEN`
+- `TIGER_ADAPTER_API_KEY`
 - `AUTO_CREDIT_SPREAD_AUTOMATION_ENABLED`
 - `AUTO_CREDIT_SPREAD_PAPER_ONLY`
 - `AUTO_CREDIT_SPREAD_MAX_RISK_PCT_PER_TRADE`
@@ -98,5 +98,5 @@ See [docs/plans/2026-03-20-auto-credit-spread-ops-checklist.md](docs/plans/2026-
 
 - Compose mounts `./tiger_adapter/config:/app/config:ro` into the adapter container.
 - The expected host-side config file is `./tiger_adapter/config/api.properties`.
-- `deploy-vps.sh` uses `TIGER_ADAPTER_TOKEN` plus that config file as the adapter enablement gate.
+- `deploy-vps.sh` uses `TIGER_ADAPTER_API_KEY` plus that config file as the adapter enablement gate.
 - The scanner can still be deployed by itself when the adapter config is absent.

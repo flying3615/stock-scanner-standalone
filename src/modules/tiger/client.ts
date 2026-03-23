@@ -162,7 +162,7 @@ export function createTigerAdapterClientFromEnv(
   const baseUrl = env.TIGER_ADAPTER_URL ?? env.TIGER_ADAPTER_BASE_URL ?? DEFAULT_BASE_URL;
   return createTigerAdapterClient({
     baseUrl,
-    token: env.TIGER_ADAPTER_TOKEN,
+    token: env.TIGER_ADAPTER_API_KEY,
     fetchImpl: options.fetchImpl,
   });
 }
