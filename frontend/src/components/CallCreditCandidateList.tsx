@@ -1,3 +1,4 @@
+import { translate, type Language } from '../i18n';
 import type { CreditSpreadCandidate } from '../types';
 import { formatCreditSpreadTemplateHorizon, getCreditSpreadAnchorLabel } from '../utils/callCredit';
 
@@ -5,6 +6,7 @@ interface CallCreditCandidateListProps {
     candidates: CreditSpreadCandidate[];
     selectedSymbol: string | null;
     onSelect: (candidate: CreditSpreadCandidate) => void;
+    language: Language;
 }
 
 function formatSignedPercent(value: number): string {
@@ -18,11 +20,13 @@ function formatVolume(value: number): string {
     return `${value}`;
 }
 
-export function CallCreditCandidateList({ candidates, selectedSymbol, onSelect }: CallCreditCandidateListProps) {
+export function CallCreditCandidateList({ candidates, selectedSymbol, onSelect, language }: CallCreditCandidateListProps) {
+    const tx = (key: Parameters<typeof translate>[1]) => translate(language, key);
+
     if (candidates.length === 0) {
         return (
             <div className="rounded-3xl border border-dashed border-neutral-700 bg-neutral-900/70 p-6 text-sm text-gray-400">
-                No credit spread candidates met the current filters.
+                {tx('noCreditCandidates')}
             </div>
         );
     }
@@ -66,26 +70,26 @@ export function CallCreditCandidateList({ candidates, selectedSymbol, onSelect }
                                     {candidate.setupState}
                                 </span>
                                 <span className="rounded-full bg-neutral-800 px-2.5 py-1 text-[11px] text-gray-400">
-                                    Score {candidate.score.toFixed(1)}
+                                    {tx('score')} {candidate.score.toFixed(1)}
                                 </span>
                                 <span className="rounded-full bg-neutral-800 px-2.5 py-1 text-[11px] text-gray-400">
-                                    {candidate.strategyType === 'BEAR_CALL_CREDIT' ? 'Bear Call' : 'Bull Put'}
+                                    {candidate.strategyType === 'BEAR_CALL_CREDIT' ? tx('bearCall') : tx('bullPut')}
                                 </span>
                             </div>
                             <div className="mt-1 text-sm text-gray-400">{candidate.name}</div>
                             <div className="mt-3 grid grid-cols-2 gap-2 text-sm md:grid-cols-4">
                                 <div className="rounded-2xl bg-black/20 px-3 py-2">
-                                    <div className="text-[11px] uppercase tracking-[0.18em] text-gray-500">Price</div>
+                                    <div className="text-[11px] uppercase tracking-[0.18em] text-gray-500">{tx('price')}</div>
                                     <div className="mt-1 font-mono text-white">${candidate.price.toFixed(2)}</div>
                                 </div>
                                 <div className="rounded-2xl bg-black/20 px-3 py-2">
-                                    <div className="text-[11px] uppercase tracking-[0.18em] text-gray-500">Change</div>
+                                    <div className="text-[11px] uppercase tracking-[0.18em] text-gray-500">{tx('change')}</div>
                                     <div className={`mt-1 font-mono ${candidate.changePercent <= 0 ? 'text-red-300' : 'text-emerald-300'}`}>
                                         {formatSignedPercent(candidate.changePercent)}
                                     </div>
                                 </div>
                                 <div className="rounded-2xl bg-black/20 px-3 py-2">
-                                    <div className="text-[11px] uppercase tracking-[0.18em] text-gray-500">Volume</div>
+                                    <div className="text-[11px] uppercase tracking-[0.18em] text-gray-500">{tx('volume')}</div>
                                     <div className="mt-1 font-mono text-white">{formatVolume(candidate.volume)}</div>
                                 </div>
                                 <div className="rounded-2xl bg-black/20 px-3 py-2">
@@ -96,7 +100,7 @@ export function CallCreditCandidateList({ candidates, selectedSymbol, onSelect }
                         </div>
 
                         <div className="w-full max-w-xs shrink-0 rounded-3xl border border-white/5 bg-black/20 p-4">
-                            <div className="text-[11px] uppercase tracking-[0.18em] text-gray-500">Template</div>
+                            <div className="text-[11px] uppercase tracking-[0.18em] text-gray-500">{tx('template')}</div>
                             {candidate.spreadTemplate ? (
                                 <div className="mt-3 space-y-2">
                                     <div className="text-2xl font-semibold text-white">
@@ -106,15 +110,15 @@ export function CallCreditCandidateList({ candidates, selectedSymbol, onSelect }
                                         {formatCreditSpreadTemplateHorizon(
                                             candidate.spreadTemplate.expiryISO,
                                             candidate.dte ?? candidate.spreadTemplate.dte,
-                                        )} · Credit {candidate.spreadTemplate.creditMid.toFixed(2)}
+                                        )} · {tx('credit')} {candidate.spreadTemplate.creditMid.toFixed(2)}
                                     </div>
                                     <div className="text-xs text-emerald-300">
-                                        Premium efficiency {(candidate.spreadTemplate.creditPctWidth * 100).toFixed(0)}%
+                                        {tx('premiumEfficiency')} {(candidate.spreadTemplate.creditPctWidth * 100).toFixed(0)}%
                                     </div>
                                 </div>
                             ) : (
                                 <div className="mt-3 text-sm text-amber-300">
-                                    {candidate.watchlistReasons[0] ?? 'Template pending'}
+                                    {candidate.watchlistReasons[0] ?? tx('templatePending')}
                                 </div>
                             )}
                         </div>

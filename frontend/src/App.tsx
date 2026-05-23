@@ -150,7 +150,7 @@ function App() {
       const { data } = await axios.get(`${API_URL}/movers`, {
         params: { type: moversType, limit: 20 }
       });
-      setMovers(data);
+      setMovers(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error(err);
     } finally {
@@ -489,7 +489,7 @@ function App() {
             </div>
           ) : strategyData ? (
             <>
-              <StrategyMacroBar snapshot={strategyData} />
+              <StrategyMacroBar snapshot={strategyData} language={language} />
               <div className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
                 <div className="space-y-4">
                   <div className="flex items-end justify-between gap-4">
@@ -567,12 +567,13 @@ function App() {
                   <CallCreditCandidateList
                     candidates={visibleStrategyCandidates}
                     selectedSymbol={selectedStrategyCandidate?.symbol ?? null}
+                    language={language}
                     onSelect={(candidate) => setSelectedStrategySymbol(candidate.symbol)}
                   />
                 </div>
 
                 <div className="space-y-4">
-                  <CallCreditDetailPanel candidate={selectedStrategyCandidate} />
+                  <CallCreditDetailPanel candidate={selectedStrategyCandidate} language={language} />
 
                   <section className="rounded-[28px] border border-neutral-700 bg-neutral-900/85 p-6">
                     <div className="text-[11px] uppercase tracking-[0.24em] text-gray-500">{tx('riskChecklist')}</div>
@@ -653,7 +654,7 @@ function App() {
                 })}
               </div>
             )}
-            <SectorStats stocks={movers} />
+            <SectorStats stocks={movers} language={language} />
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
               {movers.map(stock => (
                 <div

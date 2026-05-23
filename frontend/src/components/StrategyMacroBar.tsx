@@ -1,15 +1,18 @@
+import { translate, type Language } from '../i18n';
 import type { CreditSpreadStrategySnapshot } from '../types';
 import { getCreditSpreadStrategyLabel } from '../utils/callCredit';
 
 interface StrategyMacroBarProps {
     snapshot: CreditSpreadStrategySnapshot;
+    language: Language;
 }
 
 function formatSignedPercent(value: number): string {
     return `${value > 0 ? '+' : ''}${value.toFixed(2)}%`;
 }
 
-export function StrategyMacroBar({ snapshot }: StrategyMacroBarProps) {
+export function StrategyMacroBar({ snapshot, language }: StrategyMacroBarProps) {
+    const tx = (key: Parameters<typeof translate>[1]) => translate(language, key);
     const regime = snapshot.macro?.overallRegime ?? 'UNAVAILABLE';
     const strategyLabel = getCreditSpreadStrategyLabel(snapshot.strategyType);
     const regimeTone = regime === 'RISK_OFF'
@@ -25,7 +28,7 @@ export function StrategyMacroBar({ snapshot }: StrategyMacroBarProps) {
             <div id="strategy-regime" className={`rounded-3xl border p-5 ${regimeTone}`}>
                 <div className="flex items-start justify-between gap-3">
                     <div>
-                        <p className="text-[11px] uppercase tracking-[0.24em] text-gray-400">Macro Regime</p>
+                        <p className="text-[11px] uppercase tracking-[0.24em] text-gray-400">{tx('macroRegime')}</p>
                         <h2 className="mt-3 text-2xl font-semibold">{regime}</h2>
                     </div>
                     <div className="rounded-full border border-white/10 bg-black/20 px-3 py-1 text-xs text-gray-300">
@@ -33,15 +36,15 @@ export function StrategyMacroBar({ snapshot }: StrategyMacroBarProps) {
                     </div>
                 </div>
                 <p className="mt-3 text-sm text-gray-300">
-                    Filters: ${snapshot.filters.minPrice}-${snapshot.filters.maxPrice} price range, {snapshot.filters.minVolume.toLocaleString()} minimum volume, {snapshot.filters.targetDteMin}-{snapshot.filters.targetDteMax} DTE.
+                    {tx('filters')}: ${snapshot.filters.minPrice}-${snapshot.filters.maxPrice} {tx('priceRange')}, {snapshot.filters.minVolume.toLocaleString()} {tx('minimumVolume')}, {snapshot.filters.targetDteMin}-{snapshot.filters.targetDteMax} DTE.
                 </p>
                 <p className="mt-2 text-xs text-gray-400">
-                    {snapshot.candidates.length} setups in the current snapshot.
+                    {snapshot.candidates.length} {tx('setupsCurrent')}.
                 </p>
             </div>
 
             <div className="rounded-3xl border border-neutral-700 bg-neutral-900/80 p-5">
-                <p className="text-[11px] uppercase tracking-[0.24em] text-gray-500">US Dollar</p>
+                <p className="text-[11px] uppercase tracking-[0.24em] text-gray-500">{tx('usDollar')}</p>
                 <div className="mt-3 flex items-end justify-between gap-3">
                     <div>
                         <div className="text-2xl font-semibold text-white">
@@ -59,7 +62,7 @@ export function StrategyMacroBar({ snapshot }: StrategyMacroBarProps) {
             </div>
 
             <div className="rounded-3xl border border-neutral-700 bg-neutral-900/80 p-5">
-                <p className="text-[11px] uppercase tracking-[0.24em] text-gray-500">Volatility</p>
+                <p className="text-[11px] uppercase tracking-[0.24em] text-gray-500">{tx('volatility')}</p>
                 <div className="mt-3 flex items-end justify-between gap-3">
                     <div>
                         <div className="text-2xl font-semibold text-white">
@@ -77,22 +80,22 @@ export function StrategyMacroBar({ snapshot }: StrategyMacroBarProps) {
             </div>
 
             <div className="rounded-3xl border border-neutral-700 bg-neutral-900/80 p-5">
-                <p className="text-[11px] uppercase tracking-[0.24em] text-gray-500">Execution Lens</p>
+                <p className="text-[11px] uppercase tracking-[0.24em] text-gray-500">{tx('executionLens')}</p>
                 <div className="mt-3 space-y-3 text-sm text-gray-300">
                     <div className="flex items-center justify-between">
-                        <span>Actionable</span>
+                        <span>{tx('actionable')}</span>
                         <span className="rounded-full bg-emerald-500/10 px-2.5 py-1 font-medium text-emerald-300">
                             {snapshot.candidates.filter((candidate) => candidate.setupState === 'ACTIONABLE').length}
                         </span>
                     </div>
                     <div className="flex items-center justify-between">
-                        <span>Watchlist</span>
+                        <span>{tx('watchlist')}</span>
                         <span className="rounded-full bg-amber-500/10 px-2.5 py-1 font-medium text-amber-300">
                             {snapshot.candidates.filter((candidate) => candidate.setupState === 'WATCHLIST').length}
                         </span>
                     </div>
                     <div className="text-xs text-gray-500">
-                        Updated {new Date(snapshot.generatedAt).toLocaleString()}
+                        {tx('updated')} {new Date(snapshot.generatedAt).toLocaleString()}
                     </div>
                 </div>
             </div>

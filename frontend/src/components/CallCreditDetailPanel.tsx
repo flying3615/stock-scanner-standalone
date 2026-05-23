@@ -1,19 +1,23 @@
+import { translate, type Language } from '../i18n';
 import type { CreditSpreadCandidate } from '../types';
 import { formatCreditSpreadTemplateHorizon, getCreditSpreadAnchorLabel } from '../utils/callCredit';
 
 interface CallCreditDetailPanelProps {
     candidate: CreditSpreadCandidate | null;
+    language: Language;
 }
 
-export function CallCreditDetailPanel({ candidate }: CallCreditDetailPanelProps) {
+export function CallCreditDetailPanel({ candidate, language }: CallCreditDetailPanelProps) {
+    const tx = (key: Parameters<typeof translate>[1]) => translate(language, key);
+
     if (!candidate) {
         return (
             <div className="rounded-[28px] border border-dashed border-neutral-700 bg-neutral-900/70 p-8">
                 <div className="max-w-md">
-                    <div className="text-[11px] uppercase tracking-[0.24em] text-gray-500">Detail Panel</div>
-                    <h3 className="mt-3 text-2xl font-semibold text-white">Select a setup</h3>
+                    <div className="text-[11px] uppercase tracking-[0.24em] text-gray-500">{tx('detailPanel')}</div>
+                    <h3 className="mt-3 text-2xl font-semibold text-white">{tx('selectSetup')}</h3>
                     <p className="mt-2 text-sm leading-6 text-gray-400">
-                        Choose a ranked candidate to inspect the short strike, long strike, credit target, stop plan, and invalidation level.
+                        {tx('selectSetupHelp')}
                     </p>
                 </div>
             </div>
@@ -31,10 +35,10 @@ export function CallCreditDetailPanel({ candidate }: CallCreditDetailPanelProps)
                             {candidate.setupState}
                         </span>
                         <span className="rounded-full bg-neutral-800 px-2.5 py-1 text-[11px] text-gray-400">
-                            Score {candidate.score.toFixed(1)}
+                            {tx('score')} {candidate.score.toFixed(1)}
                         </span>
                         <span className="rounded-full bg-neutral-800 px-2.5 py-1 text-[11px] text-gray-400">
-                            {candidate.strategyType === 'BEAR_CALL_CREDIT' ? 'Bear Call Credit' : 'Bull Put Credit'}
+                            {candidate.strategyType === 'BEAR_CALL_CREDIT' ? tx('bearCall') : tx('bullPut')}
                         </span>
                     </div>
                     <h3 className="mt-3 text-3xl font-semibold text-white">{candidate.symbol}</h3>
@@ -46,7 +50,7 @@ export function CallCreditDetailPanel({ candidate }: CallCreditDetailPanelProps)
                         <div className="mt-1 font-mono text-xl text-white">${candidate.anchorLevel.toFixed(2)}</div>
                     </div>
                     <div className="rounded-3xl border border-white/5 bg-black/20 px-4 py-3">
-                        <div className="text-[11px] uppercase tracking-[0.18em] text-gray-500">Invalidation</div>
+                        <div className="text-[11px] uppercase tracking-[0.18em] text-gray-500">{tx('invalidation')}</div>
                         <div className="mt-1 font-mono text-xl text-white">${candidate.invalidationPrice.toFixed(2)}</div>
                     </div>
                 </div>
@@ -54,29 +58,29 @@ export function CallCreditDetailPanel({ candidate }: CallCreditDetailPanelProps)
 
             <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                 <div className="rounded-3xl bg-black/20 p-4">
-                    <div className="text-[11px] uppercase tracking-[0.18em] text-gray-500">Short Strike</div>
+                    <div className="text-[11px] uppercase tracking-[0.18em] text-gray-500">{tx('shortStrike')}</div>
                     <div id="strategy-detail-short-strike" className="mt-2 text-2xl font-semibold text-white">
                         {spread ? spread.shortStrike : '—'}
                     </div>
                 </div>
                 <div className="rounded-3xl bg-black/20 p-4">
-                    <div className="text-[11px] uppercase tracking-[0.18em] text-gray-500">Long Strike</div>
+                    <div className="text-[11px] uppercase tracking-[0.18em] text-gray-500">{tx('longStrike')}</div>
                     <div className="mt-2 text-2xl font-semibold text-white">{spread ? spread.longStrike : '—'}</div>
                 </div>
                 <div className="rounded-3xl bg-black/20 p-4">
-                    <div className="text-[11px] uppercase tracking-[0.18em] text-gray-500">Net Credit</div>
+                    <div className="text-[11px] uppercase tracking-[0.18em] text-gray-500">{tx('netCredit')}</div>
                     <div id="strategy-detail-credit" className="mt-2 text-2xl font-semibold text-emerald-300">
                         {spread ? spread.creditMid.toFixed(2) : '—'}
                     </div>
                 </div>
                 <div className="rounded-3xl bg-black/20 p-4">
-                    <div className="text-[11px] uppercase tracking-[0.18em] text-gray-500">Take Profit / Stop</div>
+                    <div className="text-[11px] uppercase tracking-[0.18em] text-gray-500">{tx('takeProfitStop')}</div>
                     <div className="mt-2 font-mono text-base text-white">
                         {spread ? `${spread.takeProfitAt.toFixed(2)} / ${spread.stopLossAt.toFixed(2)}` : '—'}
                     </div>
                 </div>
                 <div className="rounded-3xl bg-black/20 p-4">
-                    <div className="text-[11px] uppercase tracking-[0.18em] text-gray-500">Expiry</div>
+                    <div className="text-[11px] uppercase tracking-[0.18em] text-gray-500">{tx('expiry')}</div>
                     <div className="mt-2 font-mono text-base text-white">
                         {spread ? formatCreditSpreadTemplateHorizon(spread.expiryISO, candidate.dte ?? spread.dte) : '—'}
                     </div>
@@ -85,14 +89,14 @@ export function CallCreditDetailPanel({ candidate }: CallCreditDetailPanelProps)
 
             <div className="mt-6 grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
                 <div className="rounded-3xl border border-neutral-800 bg-black/20 p-5">
-                    <div className="text-[11px] uppercase tracking-[0.18em] text-gray-500">Why It Ranks</div>
+                    <div className="text-[11px] uppercase tracking-[0.18em] text-gray-500">{tx('whyItRanks')}</div>
                     <div className="mt-4 flex flex-wrap gap-2">
                         {candidate.eventTags.length > 0 ? candidate.eventTags.map((tag) => (
                             <span key={tag} className="rounded-full bg-blue-500/10 px-2.5 py-1 text-xs text-blue-300">
                                 {tag}
                             </span>
                         )) : (
-                            <span className="rounded-full bg-neutral-800 px-2.5 py-1 text-xs text-gray-400">No event tags</span>
+                            <span className="rounded-full bg-neutral-800 px-2.5 py-1 text-xs text-gray-400">{tx('noEventTags')}</span>
                         )}
                     </div>
                     <div className="mt-4 space-y-2">
@@ -105,19 +109,19 @@ export function CallCreditDetailPanel({ candidate }: CallCreditDetailPanelProps)
                 </div>
 
                 <div className="rounded-3xl border border-neutral-800 bg-black/20 p-5">
-                    <div className="text-[11px] uppercase tracking-[0.18em] text-gray-500">Execution Notes</div>
+                    <div className="text-[11px] uppercase tracking-[0.18em] text-gray-500">{tx('executionNotes')}</div>
                     {spread ? (
                         <div className="mt-4 space-y-3 text-sm text-gray-300">
                             <div className="flex items-center justify-between rounded-2xl bg-neutral-900/80 px-3 py-2">
-                                <span>Width</span>
+                                <span>{tx('width')}</span>
                                 <span className="font-mono text-white">{spread.width.toFixed(0)}</span>
                             </div>
                             <div className="flex items-center justify-between rounded-2xl bg-neutral-900/80 px-3 py-2">
-                                <span>Leg Type</span>
+                                <span>{tx('legType')}</span>
                                 <span className="font-mono text-white">{spread.shortLegType}</span>
                             </div>
                             <div className="flex items-center justify-between rounded-2xl bg-neutral-900/80 px-3 py-2">
-                                <span>Short Delta</span>
+                                <span>{tx('shortDelta')}</span>
                                 <span className="font-mono text-white">{spread.shortDelta.toFixed(2)}</span>
                             </div>
                             <div className="flex items-center justify-between rounded-2xl bg-neutral-900/80 px-3 py-2">
@@ -125,7 +129,7 @@ export function CallCreditDetailPanel({ candidate }: CallCreditDetailPanelProps)
                                 <span className="font-mono text-white">{candidate.dte ?? spread.dte}</span>
                             </div>
                             <div className="flex items-center justify-between rounded-2xl bg-neutral-900/80 px-3 py-2">
-                                <span>Premium Efficiency</span>
+                                <span>{tx('premiumEfficiency')}</span>
                                 <span className="font-mono text-emerald-300">{(spread.creditPctWidth * 100).toFixed(0)}%</span>
                             </div>
                         </div>

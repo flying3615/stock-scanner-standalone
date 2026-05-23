@@ -1,12 +1,16 @@
 import { useMemo } from 'react';
+import { translate, type Language } from '../i18n';
 import type { Stock } from '../types';
 import { getSectorColorClass } from '../utils/sectorColors';
 
 interface SectorStatsProps {
     stocks: Stock[];
+    language: Language;
 }
 
-export function SectorStats({ stocks }: SectorStatsProps) {
+export function SectorStats({ stocks, language }: SectorStatsProps) {
+    const tx = (key: Parameters<typeof translate>[1]) => translate(language, key);
+
     const stats = useMemo(() => {
         const sectorCounts: Record<string, number> = {};
         const industryCounts: Record<string, number> = {};
@@ -35,7 +39,7 @@ export function SectorStats({ stocks }: SectorStatsProps) {
 
     return (
         <div className="mb-6 bg-neutral-800/30 border border-neutral-700/30 rounded-xl p-4">
-            <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Market Composition</h3>
+            <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">{tx('marketComposition')}</h3>
 
             {/* Sectors */}
             <div className="mb-4">
@@ -54,7 +58,7 @@ export function SectorStats({ stocks }: SectorStatsProps) {
             {/* Hot Industries (if any repeated) */}
             {stats.industries.length > 0 && (
                 <div className="border-t border-neutral-700/50 pt-3 flex items-center gap-3">
-                    <span className="text-[10px] text-gray-500 uppercase shrink-0">Hot Industries:</span>
+                    <span className="text-[10px] text-gray-500 uppercase shrink-0">{tx('hotIndustries')}:</span>
                     <div className="flex flex-wrap gap-2">
                         {stats.industries.map(([industry, count]) => (
                             <span key={industry} className="text-[10px] text-gray-400 flex items-center gap-1">
