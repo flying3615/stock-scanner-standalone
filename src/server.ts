@@ -3,6 +3,7 @@ import { PrismaClient } from '@prisma/client';
 import express from 'express';
 import cors from 'cors';
 import { fetchMarketMovers, MoverType } from './worker/scanner/market-movers.js';
+import { scoreShortTermSignal, scoreStockQuality } from './worker/scanner/quality-scorer.js';
 import { calculateMoneyFlowStrength } from './worker/util.js';
 import { getSectorTrends, getEnhancedSectorTrends } from './worker/analytics/sector-trend.js';
 import { analyzeStockValue } from './worker/scanner/value-analyzer.js';
@@ -92,6 +93,16 @@ app.get('/api/movers', async (req, res) => {
                 ...m,
                 valueScore: val ? val.score : null,
                 valueMetrics: val ? val.metrics : null,
+                stockQuality: scoreStockQuality({
+                    valueScore: val ? val.score : null,
+                    metrics: val ? val.metrics : null,
+                    sector: val ? val.sector : undefined,
+                    volume: m.volume,
+                }),
+                shortTermSignal: scoreShortTermSignal({
+                    moneyFlowStrength: mfi,
+                    changePercent: m.changePercent,
+                }),
                 moneyFlowStrength: mfi,
                 sector: val ? val.sector : undefined,
                 industry: val ? val.industry : undefined,
@@ -121,8 +132,17 @@ app.get('/api/value/:symbol', async (req, res) => {
         if (!result) {
             return res.status(404).json({ error: 'Data not found' });
         }
-        cache.set(cacheKey, result, 1800); // Cache value analysis for 30 mins
-        res.json(result);
+        const enriched = {
+            ...result,
+            stockQuality: scoreStockQuality({
+                valueScore: result.score,
+                metrics: result.metrics,
+                sector: result.sector,
+                volume: result.volume,
+            }),
+        };
+        cache.set(cacheKey, enriched, 1800); // Cache value analysis for 30 mins
+        res.json(enriched);
     } catch (error) {
         console.error(error);
         res.status(500).json({ error: 'Analysis failed' });
@@ -165,6 +185,13 @@ app.get('/api/options/:symbol', async (req, res) => {
             moneyFlowStrength: result.moneyFlowStrength,
             signals: result.signals,
             sentiment: result.sentiment,
+            shortTermSignal: scoreShortTermSignal({
+                moneyFlowStrength: result.moneyFlowStrength,
+                options: {
+                    signals: result.signals,
+                    sentiment: result.sentiment,
+                },
+            }),
             marketState: result.marketState,
             rmp: result.rmp
         };

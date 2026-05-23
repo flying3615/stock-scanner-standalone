@@ -31,6 +31,8 @@ export interface Stock {
     industry?: string;
     thresholds?: SectorThresholds;
     reasons?: string[];
+    stockQuality?: StockQualityScore;
+    shortTermSignal?: ShortTermSignalScore;
 }
 
 export interface OptionSignal {
@@ -40,7 +42,36 @@ export interface OptionSignal {
     direction: string;
     notional: number;
     directionConfidence: number;
+    signalQuality?: number;
+    spreadPct?: number;
     spotConfirmation: string | null;
+    ageMin?: number;
+}
+
+export interface StockQualityScore {
+    score: number;
+    grade: 'A' | 'B' | 'C' | 'D' | 'F';
+    components: {
+        valuation: number;
+        profitability: number;
+        growth: number;
+        balanceSheet: number;
+        liquidity: number;
+    };
+    reasons: string[];
+}
+
+export interface ShortTermSignalScore {
+    score: number;
+    direction: 'bullish' | 'bearish' | 'neutral';
+    components: {
+        priceMomentum: number;
+        moneyFlow: number;
+        optionsFlow: number;
+        alignment: number;
+        noisePenalty: number;
+    };
+    reasons: string[];
 }
 
 export interface NewsItem {

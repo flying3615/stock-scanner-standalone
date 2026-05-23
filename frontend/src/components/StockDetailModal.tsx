@@ -1,6 +1,6 @@
 import type { Dispatch, SetStateAction } from 'react';
 import { Activity, BarChart2 } from 'lucide-react';
-import type { Stock, OptionSignal, StockSnapshot, NewsItem } from '../types';
+import type { Stock, OptionSignal, StockSnapshot, NewsItem, ShortTermSignalScore } from '../types';
 import { MoneyFlowGauge } from './MoneyFlowGauge';
 import { getSectorColorClass } from '../utils/sectorColors';
 
@@ -12,7 +12,7 @@ interface StockDetailModalProps {
     viewMode: 'analysis' | 'history';
     setViewMode: Dispatch<SetStateAction<'analysis' | 'history'>>;
     optionsLoading: boolean;
-    optionsData: { signals: OptionSignal[], moneyFlowStrength: number } | null;
+    optionsData: { signals: OptionSignal[], moneyFlowStrength: number, shortTermSignal?: ShortTermSignalScore } | null;
     historyLoading: boolean;
     historyData: StockSnapshot[];
     newsLoading: boolean;
@@ -27,6 +27,47 @@ function MetricCard({ label, value, sub, status = 'neutral' }: { label: string, 
             <div className="text-gray-500 text-xs mb-1">{label}</div>
             <div className={`text-lg font-bold ${color}`}>{value}</div>
             <div className="text-[10px] text-gray-600 mt-1">{sub}</div>
+        </div>
+    );
+}
+
+function ScoreCard({
+    label,
+    score,
+    tone,
+    sub,
+    reasons
+}: {
+    label: string;
+    score: string | number;
+    tone: 'green' | 'cyan' | 'neutral';
+    sub: string;
+    reasons: string[];
+}) {
+    const toneClass = tone === 'green'
+        ? 'border-green-500/30 bg-green-500/10 text-green-300'
+        : tone === 'cyan'
+            ? 'border-cyan-500/30 bg-cyan-500/10 text-cyan-300'
+            : 'border-neutral-700 bg-neutral-800/60 text-gray-300';
+
+    return (
+        <div className={`rounded-xl border p-4 ${toneClass}`}>
+            <div className="flex items-start justify-between gap-4">
+                <div>
+                    <div className="text-xs uppercase tracking-wide opacity-70">{label}</div>
+                    <div className="mt-1 text-sm text-gray-300">{sub}</div>
+                </div>
+                <div className="text-3xl font-bold text-white">{score}</div>
+            </div>
+            {reasons.length > 0 && (
+                <div className="mt-3 flex flex-wrap gap-2">
+                    {reasons.slice(0, 3).map((reason) => (
+                        <span key={reason} className="rounded border border-white/10 bg-black/20 px-2 py-1 text-[10px] text-gray-200">
+                            {reason}
+                        </span>
+                    ))}
+                </div>
+            )}
         </div>
     );
 }
@@ -147,7 +188,25 @@ export function StockDetailModal({
                 </div>
 
                 {viewMode === 'analysis' ? (
-                    <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div className="p-6 space-y-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <ScoreCard
+                                label="Stock Quality"
+                                score={selectedStock.stockQuality ? `${selectedStock.stockQuality.score} ${selectedStock.stockQuality.grade}` : 'N/A'}
+                                tone={selectedStock.stockQuality && selectedStock.stockQuality.score >= 70 ? 'green' : 'neutral'}
+                                sub="Business, valuation, growth, balance sheet, and liquidity"
+                                reasons={selectedStock.stockQuality?.reasons ?? []}
+                            />
+                            <ScoreCard
+                                label="Short-Term Signal"
+                                score={optionsData?.shortTermSignal ? optionsData.shortTermSignal.score : selectedStock.shortTermSignal?.score ?? 'N/A'}
+                                tone={(optionsData?.shortTermSignal?.score ?? selectedStock.shortTermSignal?.score ?? 0) >= 70 ? 'cyan' : 'neutral'}
+                                sub={`Current setup: ${(optionsData?.shortTermSignal?.direction ?? selectedStock.shortTermSignal?.direction ?? 'neutral').toUpperCase()}`}
+                                reasons={optionsData?.shortTermSignal?.reasons ?? selectedStock.shortTermSignal?.reasons ?? []}
+                            />
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                         {/* Left: Fundamentals */}
                         <div>
                             <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
@@ -285,6 +344,7 @@ export function StockDetailModal({
                                     </div>
                                 )}
                             </div>
+                        </div>
                         </div>
                     </div>
                 ) : (

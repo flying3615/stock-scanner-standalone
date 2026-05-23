@@ -10,6 +10,7 @@ import type {
   StockSnapshot,
   MacroSnapshot,
   NewsItem,
+  ShortTermSignalScore,
 } from './types';
 import { StockDetailModal } from './components/StockDetailModal';
 import { MoneyFlowGauge } from './components/MoneyFlowGauge';
@@ -50,7 +51,7 @@ function App() {
   const [movers, setMovers] = useState<Stock[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedStock, setSelectedStock] = useState<Stock | null>(null);
-  const [optionsData, setOptionsData] = useState<{ signals: OptionSignal[], moneyFlowStrength: number } | null>(null);
+  const [optionsData, setOptionsData] = useState<{ signals: OptionSignal[], moneyFlowStrength: number, shortTermSignal?: ShortTermSignalScore } | null>(null);
   const [optionsLoading, setOptionsLoading] = useState(false);
   const [macroData, setMacroData] = useState<MacroSnapshot | null>(null);
   const [macroLoading, setMacroLoading] = useState(false);
@@ -101,7 +102,8 @@ function App() {
         sector: data.sector,
         industry: data.industry,
         thresholds: data.thresholds,
-        reasons: data.reasons
+        reasons: data.reasons,
+        stockQuality: data.stockQuality
       };
 
       handleStockClick(stock);
@@ -666,11 +668,22 @@ function App() {
                     <div className="shrink-0 flex items-center">
                       <div className={`
                                     px-2 py-0.5 rounded text-xs font-bold h-fit
-                                    ${stock.valueScore && stock.valueScore >= 5 ? 'bg-green-500/20 text-green-400' :
-                          stock.valueScore && stock.valueScore >= 3 ? 'bg-yellow-500/20 text-yellow-400' :
+                                    ${stock.stockQuality && stock.stockQuality.score >= 75 ? 'bg-green-500/20 text-green-400' :
+                          stock.stockQuality && stock.stockQuality.score >= 55 ? 'bg-yellow-500/20 text-yellow-400' :
                             'bg-red-500/20 text-red-400'}
                                  `}>
-                        Score: {stock.valueScore ?? 'N/A'}/6
+                        Quality: {stock.stockQuality?.score ?? 'N/A'}
+                      </div>
+                    </div>
+
+                    <div className="shrink-0 flex items-center">
+                      <div className={`
+                                    px-2 py-0.5 rounded text-xs font-bold h-fit
+                                    ${stock.shortTermSignal && stock.shortTermSignal.score >= 70 ? 'bg-cyan-500/20 text-cyan-300' :
+                          stock.shortTermSignal && stock.shortTermSignal.score >= 45 ? 'bg-sky-500/20 text-sky-300' :
+                            'bg-neutral-700/60 text-neutral-400'}
+                                 `}>
+                        Signal: {stock.shortTermSignal?.score ?? 'N/A'}
                       </div>
                     </div>
 
