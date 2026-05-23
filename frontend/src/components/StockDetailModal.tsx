@@ -3,11 +3,13 @@ import { Activity, BarChart2 } from 'lucide-react';
 import type { Stock, OptionSignal, StockSnapshot, NewsItem, ShortTermSignalScore } from '../types';
 import { MoneyFlowGauge } from './MoneyFlowGauge';
 import { getSectorColorClass } from '../utils/sectorColors';
+import { translate, type Language } from '../i18n';
 
 type MetricStatus = 'good' | 'bad' | 'neutral';
 
 interface StockDetailModalProps {
     selectedStock: Stock;
+    language: Language;
     onClose: () => void;
     viewMode: 'analysis' | 'history';
     setViewMode: Dispatch<SetStateAction<'analysis' | 'history'>>;
@@ -80,6 +82,7 @@ const formatPercent = (value?: number | null, decimals = 1) => formatNumber(valu
 
 export function StockDetailModal({
     selectedStock,
+    language,
     onClose,
     viewMode,
     setViewMode,
@@ -91,6 +94,7 @@ export function StockDetailModal({
     newsData,
     newsError
 }: StockDetailModalProps) {
+    const tx = (key: Parameters<typeof translate>[1]) => translate(language, key);
     const metrics = selectedStock.valueMetrics;
     const thresholds = selectedStock.thresholds;
 
@@ -169,20 +173,20 @@ export function StockDetailModal({
                                 onClick={() => setViewMode('analysis')}
                                 className={`px-3 py-1 rounded-md text-sm transition-all ${viewMode === 'analysis' ? 'bg-neutral-700 text-white' : 'text-gray-400 hover:text-white'}`}
                             >
-                                Analysis
+                                {tx('analysis')}
                             </button>
                             <button
                                 onClick={() => setViewMode('history')}
                                 className={`px-3 py-1 rounded-md text-sm transition-all ${viewMode === 'history' ? 'bg-neutral-700 text-white' : 'text-gray-400 hover:text-white'}`}
                             >
-                                History
+                                {tx('history')}
                             </button>
                         </div>
                         <button
                             onClick={onClose}
                             className="text-gray-500 hover:text-white"
                         >
-                            Close
+                            {tx('close')}
                         </button>
                     </div>
                 </div>
@@ -191,17 +195,17 @@ export function StockDetailModal({
                     <div className="p-6 space-y-6">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <ScoreCard
-                                label="Stock Quality"
+                                label={tx('stockQuality')}
                                 score={selectedStock.stockQuality ? `${selectedStock.stockQuality.score} ${selectedStock.stockQuality.grade}` : 'N/A'}
                                 tone={selectedStock.stockQuality && selectedStock.stockQuality.score >= 70 ? 'green' : 'neutral'}
-                                sub="Business, valuation, growth, balance sheet, and liquidity"
+                                sub={tx('stockQualitySub')}
                                 reasons={selectedStock.stockQuality?.reasons ?? []}
                             />
                             <ScoreCard
-                                label="Short-Term Signal"
+                                label={tx('shortTermSignal')}
                                 score={optionsData?.shortTermSignal ? optionsData.shortTermSignal.score : selectedStock.shortTermSignal?.score ?? 'N/A'}
                                 tone={(optionsData?.shortTermSignal?.score ?? selectedStock.shortTermSignal?.score ?? 0) >= 70 ? 'cyan' : 'neutral'}
-                                sub={`Current setup: ${(optionsData?.shortTermSignal?.direction ?? selectedStock.shortTermSignal?.direction ?? 'neutral').toUpperCase()}`}
+                                sub={`${tx('currentSetup')}: ${(optionsData?.shortTermSignal?.direction ?? selectedStock.shortTermSignal?.direction ?? 'neutral').toUpperCase()}`}
                                 reasons={optionsData?.shortTermSignal?.reasons ?? selectedStock.shortTermSignal?.reasons ?? []}
                             />
                         </div>
@@ -210,51 +214,51 @@ export function StockDetailModal({
                         {/* Left: Fundamentals */}
                         <div>
                             <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                                <Activity size={18} className="text-purple-400" /> Fundamental Analysis
+                                <Activity size={18} className="text-purple-400" /> {tx('fundamentals')}
                             </h3>
 
                             <div className="grid grid-cols-2 gap-4 mb-6">
                                 <MetricCard
-                                    label="P/E Ratio"
+                                    label={tx('peRatio')}
                                     value={formatNumber(metrics?.pe)}
-                                    sub={`Target < ${peMax}${!isFiniteNumber(metrics?.pe) ? '' : metrics!.pe > peMax && metrics!.pe < peOver ? ' (fair)' : ''}`}
+                                    sub={`${tx('targetBelow')} ${peMax}${!isFiniteNumber(metrics?.pe) ? '' : metrics!.pe > peMax && metrics!.pe < peOver ? ' (fair)' : ''}`}
                                     status={peStatus}
                                 />
                                 <MetricCard
-                                    label="P/B Ratio"
+                                    label={tx('pbRatio')}
                                     value={formatNumber(metrics?.pb)}
-                                    sub={`Target < ${pbMax}`}
+                                    sub={`${tx('targetBelow')} ${pbMax}`}
                                     status={pbStatus}
                                 />
                                 <MetricCard
-                                    label="ROE"
+                                    label={tx('roe')}
                                     value={formatPercent(metrics?.roe)}
-                                    sub={`Target > ${roeMin}%`}
+                                    sub={`${tx('targetAbove')} ${roeMin}%`}
                                     status={roeStatus}
                                 />
                                 <MetricCard
-                                    label="Debt/Equity"
+                                    label={tx('debtEquity')}
                                     value={formatPercent(metrics?.debtToEquity)}
-                                    sub={`Target < ${debtMax}%`}
+                                    sub={`${tx('targetBelow')} ${debtMax}%`}
                                     status={debtStatus}
                                 />
                                 <MetricCard
-                                    label="Profit Margin"
+                                    label={tx('profitMargin')}
                                     value={formatPercent(metrics?.profitMargin)}
-                                    sub={`Healthy > ${marginHealthy}%`}
+                                    sub={`${tx('healthyAbove')} ${marginHealthy}%`}
                                     status={marginStatus}
                                 />
                                 <MetricCard
-                                    label="Growth"
+                                    label={tx('growth')}
                                     value={formatPercent(metrics?.growth)}
-                                    sub="Earnings/Revenue trend"
+                                    sub={tx('growthTrend')}
                                     status={growthStatus}
                                 />
                             </div>
 
                             {selectedStock.reasons && selectedStock.reasons.length > 0 && (
                                 <div className="bg-neutral-800/50 p-4 rounded-xl border border-neutral-700">
-                                    <h4 className="text-sm font-medium text-gray-300 mb-2">Highlights</h4>
+                                    <h4 className="text-sm font-medium text-gray-300 mb-2">{tx('highlights')}</h4>
                                     <div className="flex flex-wrap gap-2">
                                         {selectedStock.reasons.map(r => (
                                             <span key={r} className="px-2 py-1 bg-blue-500/10 text-blue-400 text-xs rounded border border-blue-500/20">
@@ -269,7 +273,7 @@ export function StockDetailModal({
                         {/* Right: Options Flow */}
                         <div>
                             <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                                <BarChart2 size={18} className="text-orange-400" /> Institutional Flow
+                                <BarChart2 size={18} className="text-orange-400" /> {tx('institutionalFlow')}
                             </h3>
 
                             {optionsLoading ? (
@@ -284,7 +288,7 @@ export function StockDetailModal({
 
                                     <div className="space-y-3">
                                         {optionsData.signals.length === 0 && (
-                                            <div className="text-gray-500 text-sm italic">No significant active signals found.</div>
+                                            <div className="text-gray-500 text-sm italic">{tx('noSignals')}</div>
                                         )}
                                         {optionsData.signals.slice(0, 5).map((sig, idx) => (
                                             <div key={idx} className="bg-neutral-800 p-3 rounded-lg border border-neutral-700 flex justify-between items-center text-sm">
@@ -296,22 +300,22 @@ export function StockDetailModal({
                                                     <span className="font-mono text-white">${sig.strike}</span>
                                                 </div>
                                                 <div className="text-gray-400 text-xs">
-                                                    Exp: {sig.expiryISO.split('T')[0]}
+                                                    {tx('expiry')}: {sig.expiryISO.split('T')[0]}
                                                 </div>
                                                 <div className="text-right">
                                                     <div className="text-white font-medium">${(sig.notional / 1000).toFixed(0)}k</div>
-                                                    <div className="text-[10px] text-gray-500">Notional</div>
+                                                    <div className="text-[10px] text-gray-500">{tx('notional')}</div>
                                                 </div>
                                             </div>
                                         ))}
                                     </div>
                                 </div>
                             ) : (
-                                <div className="text-red-400 text-sm">Failed to load options data.</div>
+                                <div className="text-red-400 text-sm">{tx('failedOptions')}</div>
                             )}
 
                             <div className="mt-6">
-                                <h4 className="text-sm font-semibold text-gray-200 mb-3">Related News</h4>
+                                <h4 className="text-sm font-semibold text-gray-200 mb-3">{tx('relatedNews')}</h4>
                                 {newsLoading ? (
                                     <div className="flex justify-center py-6">
                                         <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
@@ -319,7 +323,7 @@ export function StockDetailModal({
                                 ) : newsError ? (
                                     <div className="text-red-400 text-sm">{newsError}</div>
                                 ) : newsData.length === 0 ? (
-                                    <div className="text-gray-500 text-sm italic">No recent news for this symbol.</div>
+                                    <div className="text-gray-500 text-sm italic">{tx('noNews')}</div>
                                 ) : (
                                     <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
                                         {newsData.slice(0, 12).map((item) => (
@@ -354,19 +358,19 @@ export function StockDetailModal({
                                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
                             </div>
                         ) : historyData.length === 0 ? (
-                            <div className="text-center text-gray-500 py-10">No history found for {selectedStock.symbol}</div>
+                            <div className="text-center text-gray-500 py-10">{tx('noHistory')} {selectedStock.symbol}</div>
                         ) : (
                             <div className="space-y-4">
-                                <h3 className="text-xl font-bold text-white mb-4">Historical Scans</h3>
+                                <h3 className="text-xl font-bold text-white mb-4">{tx('historicalScans')}</h3>
                                 <div className="overflow-x-auto">
                                     <table className="w-full text-left text-sm text-gray-400">
                                         <thead className="bg-neutral-800 text-gray-200 uppercase">
                                             <tr>
-                                                <th className="px-4 py-3">Date</th>
-                                                <th className="px-4 py-3">Price</th>
-                                                <th className="px-4 py-3">Sentiment</th>
-                                                <th className="px-4 py-3">Money Flow</th>
-                                                <th className="px-4 py-3">Strategies Detected</th>
+                                                <th className="px-4 py-3">{tx('date')}</th>
+                                                <th className="px-4 py-3">{tx('price')}</th>
+                                                <th className="px-4 py-3">{tx('sentiment')}</th>
+                                                <th className="px-4 py-3">{tx('moneyFlow')}</th>
+                                                <th className="px-4 py-3">{tx('strategiesDetected')}</th>
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-neutral-800">

@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { Search } from 'lucide-react';
+import { Languages, Search } from 'lucide-react';
 import axios from 'axios';
 import './App.css';
 import type {
@@ -26,6 +26,7 @@ import {
   getVisibleCreditSpreadCandidates,
   hasActionableCreditSpreadCandidates,
 } from './utils/callCredit';
+import { detectInitialLanguage, translate, type Language } from './i18n';
 
 // API Base URL
 const rawBase = (import.meta.env.VITE_API_BASE ?? '').replace(/\/$/, '');
@@ -46,6 +47,7 @@ interface FinancialJuiceTokenStatus {
 }
 
 function App() {
+  const [language, setLanguage] = useState<Language>(() => detectInitialLanguage());
   const [moversType, setMoversType] = useState<'active' | 'gainers' | 'losers'>('active');
   const [dashboardView, setDashboardView] = useState<'scanner' | 'radar' | 'strategies'>('scanner');
   const [movers, setMovers] = useState<Stock[]>([]);
@@ -78,6 +80,7 @@ function App() {
   const [newsTokenLoading, setNewsTokenLoading] = useState(false);
   const [newsTokenSubmitting, setNewsTokenSubmitting] = useState(false);
   const [newsTokenMessage, setNewsTokenMessage] = useState<string | null>(null);
+  const tx = (key: Parameters<typeof translate>[1]) => translate(language, key);
 
   const handleSearch = async (e: FormEvent) => {
     e.preventDefault();
@@ -110,7 +113,7 @@ function App() {
       setSearchQuery(''); // Clear search
     } catch (err) {
       console.error('Search failed', err);
-      alert(`Could not find stock: ${symbol}`);
+      alert(`${tx('searchNotFound')}: ${symbol}`);
     } finally {
       setIsSearching(false);
     }
@@ -130,6 +133,10 @@ function App() {
   useEffect(() => {
     fetchNewsTokenStatus();
   }, []);
+
+  useEffect(() => {
+    window.localStorage.setItem('stock-scanner-language', language);
+  }, [language]);
 
   useEffect(() => {
     if (dashboardView === 'strategies' && !strategyLoading && (!strategyData || strategyData.strategyType !== selectedStrategyType)) {
@@ -207,11 +214,11 @@ function App() {
     try {
       await axios.post(`${API_URL}/news/token`, { token });
       setNewsTokenInput('');
-      setNewsTokenMessage('Token updated');
+      setNewsTokenMessage(tx('tokenUpdated'));
       await fetchNewsTokenStatus();
     } catch (err) {
       console.error('[News] Failed to set token', err);
-      setNewsTokenMessage('Failed to set token');
+      setNewsTokenMessage(tx('tokenSetFailed'));
     } finally {
       setNewsTokenSubmitting(false);
     }
@@ -222,11 +229,11 @@ function App() {
     setNewsTokenMessage(null);
     try {
       await axios.delete(`${API_URL}/news/token`);
-      setNewsTokenMessage('Token cleared');
+      setNewsTokenMessage(tx('tokenCleared'));
       await fetchNewsTokenStatus();
     } catch (err) {
       console.error('[News] Failed to clear token', err);
-      setNewsTokenMessage('Failed to clear token');
+      setNewsTokenMessage(tx('tokenClearFailed'));
     } finally {
       setNewsTokenSubmitting(false);
     }
@@ -278,7 +285,7 @@ function App() {
         setNewsData(items);
       } catch (err) {
         console.error('[News] Failed to load symbol news', err);
-        setNewsError('Failed to load symbol news');
+        setNewsError(tx('newsFailed'));
       } finally {
         setNewsLoading(false);
       }
@@ -295,80 +302,95 @@ function App() {
     ?? null;
 
   return (
-    <div className="min-h-screen w-full bg-neutral-900 text-gray-100 font-sans p-6">
+    <div className="min-h-screen w-full bg-slate-950 text-slate-100 font-sans p-4 sm:p-6">
       {dashboardView !== 'strategies' && macroData && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4 text-sm">
-          <div id="macro-dxy" className="bg-neutral-800/60 border border-neutral-700/40 rounded-xl p-4 flex items-center justify-between">
+          <div id="macro-dxy" className="bg-slate-900/70 border border-slate-700/50 rounded-xl p-4 flex items-center justify-between shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
             <div>
-              <p className="text-xs uppercase text-gray-500">US Dollar Index</p>
+              <p className="text-xs uppercase text-slate-500">{tx('macroDxy')}</p>
               <p className="text-2xl font-semibold">{macroData.dxy.price.toFixed(2)}</p>
             </div>
             <div className={`text-sm font-bold ${macroData.dxy.trend === 'UP' ? 'text-red-400' : macroData.dxy.trend === 'DOWN' ? 'text-green-400' : 'text-gray-400'}`}>
               {macroData.dxy.trend}
             </div>
           </div>
-          <div id="macro-vix" className="bg-neutral-800/60 border border-neutral-700/40 rounded-xl p-4 flex items-center justify-between">
+          <div id="macro-vix" className="bg-slate-900/70 border border-slate-700/50 rounded-xl p-4 flex items-center justify-between shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
             <div>
-              <p className="text-xs uppercase text-gray-500">VIX Fear Gauge</p>
+              <p className="text-xs uppercase text-slate-500">{tx('macroVix')}</p>
               <p className="text-2xl font-semibold">{macroData.vix.price.toFixed(2)}</p>
             </div>
             <div className={`text-sm font-bold ${macroData.vix.status === 'RISING' ? 'text-red-400' : macroData.vix.status === 'FALLING' ? 'text-green-400' : 'text-gray-400'}`}>
               {macroData.vix.status}
             </div>
           </div>
-          <div className="bg-neutral-800/60 border border-neutral-700/40 rounded-xl p-4 flex flex-col justify-center">
-            <p className="text-xs uppercase text-gray-500">Macro Regime</p>
+          <div className="bg-slate-900/70 border border-slate-700/50 rounded-xl p-4 flex flex-col justify-center shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+            <p className="text-xs uppercase text-slate-500">{tx('macroRegime')}</p>
             <p className="text-2xl font-semibold text-white" id="macro-regime">
               {macroData.overallRegime.replace('_', ' ')}
             </p>
-            {macroLoading && <span className="text-[10px] text-gray-500">Refreshing...</span>}
+            {macroLoading && <span className="text-[10px] text-slate-500">{tx('refreshing')}</span>}
           </div>
         </div>
       )}
-      <header className="mb-8 flex items-center justify-between">
+      <header className="mb-8 flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
         <div>
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">
-            Stock Value Scanner
+          <h1 className="text-3xl font-bold text-white">
+            {tx('appTitle')}
           </h1>
-          <p className="text-gray-400 text-sm mt-1">Market Movers & Institutional Options Flow</p>
+          <p className="text-slate-400 text-sm mt-1">{tx('appSubtitle')}</p>
         </div>
 
         {/* Search Bar */}
-        <form onSubmit={handleSearch} className="relative mx-4">
+        <form onSubmit={handleSearch} className="relative xl:mx-4">
           <input
             type="text"
-            placeholder="Search Symbol (e.g. NVDA)..."
-            className="bg-neutral-800 border border-neutral-700 text-gray-200 text-sm rounded-full pl-10 pr-4 py-2 w-64 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all placeholder:text-gray-600"
+            placeholder={tx('searchPlaceholder')}
+            className="min-h-11 w-full rounded-full border border-slate-700 bg-slate-900/90 py-2 pl-10 pr-4 text-sm text-slate-100 placeholder:text-slate-600 transition-all focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-400/20 xl:w-72"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             disabled={isSearching}
           />
-          <Search className="absolute left-3 top-2.5 text-gray-500" size={16} />
+          <Search className="absolute left-3 top-3 text-slate-500" size={16} />
           {isSearching && (
-            <div className="absolute right-3 top-2.5 animate-spin rounded-full h-4 w-4 border-2 border-blue-500 border-t-transparent"></div>
+            <div className="absolute right-3 top-3 animate-spin rounded-full h-4 w-4 border-2 border-emerald-500 border-t-transparent"></div>
           )}
         </form>
 
-        <div className="flex gap-4">
-          <div className="flex bg-neutral-800 rounded-lg p-1">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+          <div className="flex rounded-xl border border-slate-800 bg-slate-900/80 p-1">
             <button
               onClick={() => setDashboardView('scanner')}
-              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${dashboardView === 'scanner' ? 'bg-neutral-700 text-white shadow' : 'text-gray-400 hover:text-white'}`}
+              className={`min-h-10 rounded-lg px-3 py-1.5 text-sm font-medium transition-all focus:outline-none focus:ring-2 focus:ring-emerald-400/30 ${dashboardView === 'scanner' ? 'bg-emerald-500/15 text-emerald-200 shadow' : 'text-slate-400 hover:text-white'}`}
             >
-              Scanner
+              {tx('scanner')}
             </button>
             <button
               onClick={() => setDashboardView('radar')}
-              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${dashboardView === 'radar' ? 'bg-neutral-700 text-white shadow' : 'text-gray-400 hover:text-white'}`}
+              className={`min-h-10 rounded-lg px-3 py-1.5 text-sm font-medium transition-all focus:outline-none focus:ring-2 focus:ring-emerald-400/30 ${dashboardView === 'radar' ? 'bg-emerald-500/15 text-emerald-200 shadow' : 'text-slate-400 hover:text-white'}`}
             >
-              Market Radar 📡
+              {tx('marketRadar')}
             </button>
             <button
               onClick={() => setDashboardView('strategies')}
-              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${dashboardView === 'strategies' ? 'bg-neutral-700 text-white shadow' : 'text-gray-400 hover:text-white'}`}
+              className={`min-h-10 rounded-lg px-3 py-1.5 text-sm font-medium transition-all focus:outline-none focus:ring-2 focus:ring-emerald-400/30 ${dashboardView === 'strategies' ? 'bg-emerald-500/15 text-emerald-200 shadow' : 'text-slate-400 hover:text-white'}`}
             >
-              Strategies
+              {tx('strategies')}
             </button>
+          </div>
+
+          <div className="flex min-h-11 items-center gap-1 rounded-xl border border-slate-800 bg-slate-900/80 p-1 text-sm">
+            <Languages size={16} className="ml-2 text-slate-500" aria-hidden="true" />
+            {(['en', 'zh'] as const).map((item) => (
+              <button
+                key={item}
+                type="button"
+                aria-label={`${tx('languageLabel')}: ${item}`}
+                className={`min-h-9 rounded-lg px-3 font-medium transition focus:outline-none focus:ring-2 focus:ring-emerald-400/30 ${language === item ? 'bg-slate-700 text-white' : 'text-slate-400 hover:text-white'}`}
+                onClick={() => setLanguage(item)}
+              >
+                {item === 'en' ? 'EN' : '中文'}
+              </button>
+            ))}
           </div>
 
           {dashboardView === 'scanner' && (
@@ -377,12 +399,12 @@ function App() {
                 <button
                   key={type}
                   onClick={() => setMoversType(type)}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${moversType === type
-                    ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20'
-                    : 'bg-neutral-800 text-gray-400 hover:bg-neutral-700'
+                  className={`min-h-10 rounded-lg px-4 py-2 text-sm font-medium transition-all focus:outline-none focus:ring-2 focus:ring-emerald-400/30 ${moversType === type
+                    ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-500/20'
+                    : 'bg-slate-900 text-slate-400 hover:bg-slate-800'
                     }`}
                 >
-                  {type.charAt(0).toUpperCase() + type.slice(1)}
+                  {tx(type)}
                 </button>
               ))}
             </div>
@@ -390,23 +412,23 @@ function App() {
         </div>
       </header>
 
-      <section className="mb-6 bg-neutral-800/40 border border-neutral-700/50 rounded-xl p-4">
+      <section className="mb-6 rounded-2xl border border-slate-800 bg-slate-900/60 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
         <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-3">
           <div>
-            <h2 className="text-sm font-semibold text-gray-200">FinancialJuice Token</h2>
+            <h2 className="text-sm font-semibold text-slate-200">{tx('tokenTitle')}</h2>
             <div className="mt-1 flex flex-wrap items-center gap-2 text-xs">
               <span className={`px-2 py-0.5 rounded border ${newsTokenStatus?.hasToken ? 'border-green-500/40 text-green-400' : 'border-yellow-500/40 text-yellow-300'}`}>
-                {newsTokenStatus?.hasToken ? 'Token Ready' : 'Token Missing'}
+                {newsTokenStatus?.hasToken ? tx('tokenReady') : tx('tokenMissing')}
               </span>
               {newsTokenStatus?.hardExpireAt && (
-                <span className="text-gray-400">
-                  Hard Expire: {new Date(newsTokenStatus.hardExpireAt).toLocaleString()}
+                <span className="text-slate-400">
+                  {tx('tokenHardExpire')}: {new Date(newsTokenStatus.hardExpireAt).toLocaleString()}
                 </span>
               )}
-              {newsTokenLoading && <span className="text-gray-500">Refreshing status...</span>}
+              {newsTokenLoading && <span className="text-slate-500">{tx('refreshing')}</span>}
             </div>
             {newsTokenMessage && (
-              <p className="mt-1 text-xs text-blue-300">{newsTokenMessage}</p>
+              <p className="mt-1 text-xs text-sky-300">{newsTokenMessage}</p>
             )}
           </div>
 
@@ -414,33 +436,33 @@ function App() {
             <form onSubmit={handleNewsTokenSubmit} className="flex-1 flex gap-2">
               <input
                 type="password"
-                placeholder="Paste FinancialJuice token..."
-                className="w-full bg-neutral-900 border border-neutral-700 rounded-lg px-3 py-2 text-sm text-gray-100 placeholder:text-gray-600 focus:outline-none focus:border-blue-500"
+                placeholder={tx('tokenPlaceholder')}
+                className="min-h-11 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-600 focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-400/20"
                 value={newsTokenInput}
                 onChange={(e) => setNewsTokenInput(e.target.value)}
                 disabled={newsTokenSubmitting}
               />
               <button
                 type="submit"
-                className="px-3 py-2 rounded-lg text-sm font-medium bg-blue-600 text-white hover:bg-blue-500 disabled:opacity-60"
+                className="min-h-11 rounded-lg bg-emerald-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-400/30 disabled:opacity-60"
                 disabled={newsTokenSubmitting || !newsTokenInput.trim()}
               >
-                Save
+                {tx('save')}
               </button>
             </form>
             <button
               onClick={() => void fetchNewsTokenStatus()}
-              className="px-3 py-2 rounded-lg text-sm font-medium bg-neutral-700 text-gray-100 hover:bg-neutral-600 disabled:opacity-60"
+              className="min-h-11 rounded-lg bg-slate-800 px-3 py-2 text-sm font-medium text-slate-100 transition hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-400/30 disabled:opacity-60"
               disabled={newsTokenSubmitting || newsTokenLoading}
             >
-              Refresh
+              {tx('refresh')}
             </button>
             <button
               onClick={handleNewsTokenClear}
-              className="px-3 py-2 rounded-lg text-sm font-medium bg-red-600/80 text-white hover:bg-red-500/80 disabled:opacity-60"
+              className="min-h-11 rounded-lg bg-red-600/80 px-3 py-2 text-sm font-medium text-white transition hover:bg-red-500/80 focus:outline-none focus:ring-2 focus:ring-red-400/30 disabled:opacity-60"
               disabled={newsTokenSubmitting}
             >
-              Clear
+              {tx('clear')}
             </button>
           </div>
         </div>
@@ -455,14 +477,14 @@ function App() {
             </div>
           ) : strategyError ? (
             <div className="rounded-[28px] border border-red-500/30 bg-red-950/30 p-6">
-              <h2 className="text-xl font-semibold text-white">Credit Spread Strategy Unavailable</h2>
+              <h2 className="text-xl font-semibold text-white">{tx('strategyUnavailable')}</h2>
               <p className="mt-2 text-sm text-red-100/80">{strategyError}</p>
               <button
                 type="button"
                 className="mt-4 rounded-full bg-white px-4 py-2 text-sm font-medium text-neutral-900 transition hover:bg-emerald-200"
                 onClick={() => void fetchStrategySnapshot(selectedStrategyType)}
               >
-                Retry Snapshot
+                {tx('retrySnapshot')}
               </button>
             </div>
           ) : strategyData ? (
@@ -472,13 +494,13 @@ function App() {
                 <div className="space-y-4">
                   <div className="flex items-end justify-between gap-4">
                     <div>
-                      <h2 className="text-xl font-semibold text-white">{getCreditSpreadStrategyLabel(selectedStrategyType)} Candidates</h2>
+                      <h2 className="text-xl font-semibold text-white">{getCreditSpreadStrategyLabel(selectedStrategyType)} {tx('strategyCandidates')}</h2>
                       <p className="mt-1 text-sm text-gray-400">
                         {hasActionableStrategies && !showStrategyWatchlist
-                          ? 'Showing only actionable setups by default. Expand the watchlist if you want borderline names.'
+                          ? tx('actionableHelp')
                           : selectedStrategyType === 'BEAR_CALL_CREDIT'
-                            ? 'Short-term bearish breakdowns ranked by structure, macro pressure, and available spread quality.'
-                            : 'Support-holding rebound setups ranked by structure, macro alignment, and available spread quality.'}
+                            ? tx('bearHelp')
+                            : tx('bullHelp')}
                       </p>
                     </div>
                     <div className="flex items-center gap-2">
@@ -501,7 +523,7 @@ function App() {
                               setShowStrategyWatchlist(false);
                             }}
                           >
-                            {strategyType === 'BEAR_CALL_CREDIT' ? 'Bear Call' : 'Bull Put'}
+                            {strategyType === 'BEAR_CALL_CREDIT' ? tx('bearCall') : tx('bullPut')}
                           </button>
                         ))}
                       </div>
@@ -523,7 +545,7 @@ function App() {
                             }
                           }}
                         >
-                          {showStrategyWatchlist ? 'Actionable Only' : 'Show Watchlist'}
+                          {showStrategyWatchlist ? tx('actionableOnly') : tx('showWatchlist')}
                         </button>
                       )}
                       <button
@@ -531,14 +553,14 @@ function App() {
                         className="rounded-full border border-neutral-700 bg-neutral-900 px-4 py-2 text-sm font-medium text-gray-200 transition hover:border-emerald-400/50 hover:text-white"
                         onClick={() => void fetchStrategySnapshot(selectedStrategyType)}
                       >
-                        Refresh
+                        {tx('refresh')}
                       </button>
                     </div>
                   </div>
 
                   {!hasActionableStrategies && strategyData && (
                     <div className="rounded-2xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
-                      No actionable {getCreditSpreadStrategyLabel(selectedStrategyType).toLowerCase()} setups passed the current thresholds. Showing the watchlist instead.
+                      {tx('noActionableSetups')}
                     </div>
                   )}
 
@@ -553,21 +575,21 @@ function App() {
                   <CallCreditDetailPanel candidate={selectedStrategyCandidate} />
 
                   <section className="rounded-[28px] border border-neutral-700 bg-neutral-900/85 p-6">
-                    <div className="text-[11px] uppercase tracking-[0.24em] text-gray-500">Risk Checklist</div>
+                    <div className="text-[11px] uppercase tracking-[0.24em] text-gray-500">{tx('riskChecklist')}</div>
                     <div className="mt-4 grid gap-3 md:grid-cols-2">
                       <div className="rounded-2xl bg-black/20 p-4 text-sm text-gray-300">
-                        Only engage `ACTIONABLE` setups when the spread stays above your minimum credit threshold and open interest remains liquid.
+                        {tx('riskCard1')}
                       </div>
                       <div className="rounded-2xl bg-black/20 p-4 text-sm text-gray-300">
-                        Avoid forcing entries into earnings windows or sudden headline reversals, even if the score stays high.
+                        {tx('riskCard2')}
                       </div>
                       <div className="rounded-2xl bg-black/20 p-4 text-sm text-gray-300">
-                        Use the invalidation price as a chart-based line in the sand, not just the option P/L stop.
+                        {tx('riskCard3')}
                       </div>
                       <div className="rounded-2xl bg-black/20 p-4 text-sm text-gray-300">
                         {selectedStrategyType === 'BEAR_CALL_CREDIT'
-                          ? 'Re-rank before entry if DXY and VIX both soften, because the macro tailwind for bearish premium-selling may be gone.'
-                          : 'Re-rank before entry if DXY turns higher and VIX re-accelerates, because the macro tailwind for bullish premium-selling may be gone.'}
+                          ? tx('riskCardBear')
+                          : tx('riskCardBull')}
                       </div>
                     </div>
                   </section>
@@ -576,13 +598,13 @@ function App() {
             </>
           ) : (
             <div className="rounded-[28px] border border-dashed border-neutral-700 bg-neutral-900/70 p-6 text-sm text-gray-400">
-              No strategy snapshot is available yet.
+              {tx('noStrategySnapshot')}
             </div>
           )}
         </div>
       ) : dashboardView === 'radar' ? (
         <div className="animate-in fade-in duration-500">
-          <h2 className="text-xl font-bold mb-4 text-gray-300">Strategy: Sector Rotation & Momentum</h2>
+          <h2 className="text-xl font-bold mb-4 text-gray-300">{tx('sectorStrategyTitle')}</h2>
           <SectorTrendRadar apiUrl={API_URL} />
         </div>
       ) : (
@@ -637,7 +659,7 @@ function App() {
                 <div
                   key={stock.symbol}
                   onClick={() => handleStockClick(stock)}
-                  className="bg-neutral-800/50 backdrop-blur border border-neutral-700/50 p-4 rounded-xl cursor-pointer hover:bg-neutral-700/50 transition-all group relative overflow-hidden"
+                  className="group relative cursor-pointer overflow-hidden rounded-2xl border border-slate-800/80 bg-slate-900/70 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] backdrop-blur transition-all hover:-translate-y-0.5 hover:border-emerald-500/40 hover:bg-slate-800/70 focus-within:border-emerald-500/40"
                 >
                   <div className="flex justify-between items-start mb-2">
                     <div>
@@ -672,7 +694,7 @@ function App() {
                           stock.stockQuality && stock.stockQuality.score >= 55 ? 'bg-yellow-500/20 text-yellow-400' :
                             'bg-red-500/20 text-red-400'}
                                  `}>
-                        Quality: {stock.stockQuality?.score ?? 'N/A'}
+                        {tx('quality')}: {stock.stockQuality?.score ?? 'N/A'}
                       </div>
                     </div>
 
@@ -683,7 +705,7 @@ function App() {
                           stock.shortTermSignal && stock.shortTermSignal.score >= 45 ? 'bg-sky-500/20 text-sky-300' :
                             'bg-neutral-700/60 text-neutral-400'}
                                  `}>
-                        Signal: {stock.shortTermSignal?.score ?? 'N/A'}
+                        {tx('signal')}: {stock.shortTermSignal?.score ?? 'N/A'}
                       </div>
                     </div>
 
@@ -696,7 +718,7 @@ function App() {
 
                     {/* Vol */}
                     <div className="shrink-0 text-xs text-neutral-500 pb-0.5">
-                      Vol: {(stock.volume / 1000000).toFixed(1)}M
+                      {tx('volume')}: {(stock.volume / 1000000).toFixed(1)}M
                     </div>
                   </div>
                 </div>
@@ -710,6 +732,7 @@ function App() {
       {selectedStock && (
         <StockDetailModal
           selectedStock={selectedStock}
+          language={language}
           onClose={() => setSelectedStock(null)}
           viewMode={viewMode}
           setViewMode={setViewMode}
