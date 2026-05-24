@@ -100,4 +100,8 @@ test('formatCreditSpreadTemplateHorizon includes the explicit expiry date', () =
     formatCreditSpreadTemplateHorizon('2026-03-20', 5),
     'Mar 20, 2026 · 5 DTE',
   );
+  assert.equal(
+    formatCreditSpreadTemplateHorizon('2026-03-20', 5, 'zh'),
+    '2026年3月20日 · 5 DTE',
+  );
 });

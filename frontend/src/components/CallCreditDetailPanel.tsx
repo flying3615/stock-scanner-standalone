@@ -1,4 +1,4 @@
-import { translate, type Language } from '../i18n';
+import { translate, translateEventTag, translateStrategyThesis, translateWatchlistReason, type Language } from '../i18n';
 import type { CreditSpreadCandidate } from '../types';
 import { formatCreditSpreadTemplateHorizon } from '../utils/callCredit';
 
@@ -83,7 +83,7 @@ export function CallCreditDetailPanel({ candidate, language }: CallCreditDetailP
                 <div className="rounded-3xl bg-black/20 p-4">
                     <div className="text-[11px] uppercase tracking-[0.18em] text-gray-500">{tx('expiry')}</div>
                     <div className="mt-2 font-mono text-base text-white">
-                        {spread ? formatCreditSpreadTemplateHorizon(spread.expiryISO, candidate.dte ?? spread.dte) : '—'}
+                        {spread ? formatCreditSpreadTemplateHorizon(spread.expiryISO, candidate.dte ?? spread.dte, language) : '—'}
                     </div>
                 </div>
             </div>
@@ -94,7 +94,7 @@ export function CallCreditDetailPanel({ candidate, language }: CallCreditDetailP
                     <div className="mt-4 flex flex-wrap gap-2">
                         {candidate.eventTags.length > 0 ? candidate.eventTags.map((tag) => (
                             <span key={tag} className="rounded-full bg-blue-500/10 px-2.5 py-1 text-xs text-blue-300">
-                                {tag}
+                                {translateEventTag(language, tag)}
                             </span>
                         )) : (
                             <span className="rounded-full bg-neutral-800 px-2.5 py-1 text-xs text-gray-400">{tx('noEventTags')}</span>
@@ -103,7 +103,7 @@ export function CallCreditDetailPanel({ candidate, language }: CallCreditDetailP
                     <div className="mt-4 space-y-2">
                         {candidate.thesis.map((point) => (
                             <div key={point} className="rounded-2xl bg-neutral-900/80 px-3 py-2 text-sm text-gray-200">
-                                {point}
+                                {translateStrategyThesis(language, point)}
                             </div>
                         ))}
                     </div>
@@ -138,7 +138,7 @@ export function CallCreditDetailPanel({ candidate, language }: CallCreditDetailP
                         <div className="mt-4 space-y-2">
                             {candidate.watchlistReasons.map((reason) => (
                                 <div key={reason} className="rounded-2xl bg-amber-500/10 px-3 py-2 text-sm text-amber-200">
-                                    {reason}
+                                    {translateWatchlistReason(language, reason)}
                                 </div>
                             ))}
                         </div>

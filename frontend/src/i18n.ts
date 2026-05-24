@@ -422,6 +422,62 @@ const reasonTranslations: Record<string, string> = {
   'Growth contracting': '成长收缩',
 };
 
+const watchlistReasonTranslations: Record<string, string> = {
+  'watchlist-only: Session is green, not a confirmed downside breakdown': '仅观察：当前交易日仍为上涨，尚未确认向下破位',
+  'watchlist-only: Breakdown score is below the actionable threshold': '仅观察：破位评分低于可行动阈值',
+  'watchlist-only: Bounce quality is below the actionable threshold': '仅观察：反弹质量低于可行动阈值',
+  'watchlist-only: Macro regime does not currently favor bearish call credit setups': '仅观察：当前宏观环境暂不支持偏空 Call Credit 机会',
+  'watchlist-only: Macro regime does not currently favor bullish put credit setups': '仅观察：当前宏观环境暂不支持偏多 Put Credit 机会',
+  'watchlist-only: No liquid 3-7 DTE call spread was found above resistance': '仅观察：阻力位上方未找到流动性合格的 3-7 DTE Call 价差',
+  'watchlist-only: No liquid 3-7 DTE put spread was found below support': '仅观察：支撑位下方未找到流动性合格的 3-7 DTE Put 价差',
+  'watchlist-only: Credit capture is below the actionable threshold': '仅观察：权利金捕获低于可行动阈值',
+  'watchlist-only: Price is already through the support anchor': '仅观察：价格已经跌破支撑锚点',
+  'watchlist-only: Price already reclaimed the resistance anchor': '仅观察：价格已经重新站上阻力锚点',
+  'watchlist-only: Strategy requirements are not fully aligned': '仅观察：策略条件尚未完全对齐',
+};
+
+export function translateWatchlistReason(language: Language, reason: string): string {
+  if (language === 'en') return reason;
+  return watchlistReasonTranslations[reason] ?? reason.replace(/^watchlist-only:\s*/, '仅观察：');
+}
+
+const thesisTranslations: Record<string, string> = {
+  'Closed below the prior 20-session low': '收盘跌破前 20 个交易日低点',
+  'Price is trading beneath the 20-day EMA': '价格运行在 20 日 EMA 下方',
+  'Price is trading beneath the 50-day EMA': '价格运行在 50 日 EMA 下方',
+  'Macro tape is risk-off, which supports bearish premium-selling setups': '宏观盘面偏风险规避，支持偏空卖权利金机会',
+  'Options chain offers a liquid call credit spread above resistance': '期权链在阻力位上方提供流动性合格的 Call Credit 价差',
+  'Close held above the prior 20-session low': '收盘守住前 20 个交易日低点',
+  'Price reclaimed or held the 20-day EMA': '价格收复或守住 20 日 EMA',
+  'Price is above the 50-day EMA support': '价格位于 50 日 EMA 支撑上方',
+  'Lower wick suggests buyers absorbed intraday weakness': '下影线显示买盘吸收了盘中弱势',
+  'Macro tape is supportive for bullish premium-selling setups': '宏观盘面对偏多卖权利金机会有支撑',
+  'Options chain offers a liquid put credit spread below support': '期权链在支撑位下方提供流动性合格的 Put Credit 价差',
+};
+
+export function translateStrategyThesis(language: Language, point: string): string {
+  if (language === 'en') return point;
+  const patternTranslations: Array<[RegExp, (match: RegExpMatchArray) => string]> = [
+    [/^Volume expanded to (.+)x the 20-day average$/, (match) => `成交量放大至 20 日均量的 ${match[1]} 倍`],
+    [/^Daily loss is (.+)%$/, (match) => `单日跌幅为 ${match[1]}%`],
+    [/^Credit captures (.+)% of spread width$/, (match) => `权利金捕获价差宽度的 ${match[1]}%`],
+  ];
+  for (const [pattern, translateMatch] of patternTranslations) {
+    const match = point.match(pattern);
+    if (match) return translateMatch(match);
+  }
+  return thesisTranslations[point] ?? point;
+}
+
+export function translateEventTag(language: Language, tag: string): string {
+  if (language === 'en') return tag;
+  const earningsMatch = tag.match(/^earnings-(\d+)d$/);
+  if (earningsMatch) return `财报 ${earningsMatch[1]} 天`;
+  const eventMatch = tag.match(/^recent-event-(\d+)d$/);
+  if (eventMatch) return `近 ${eventMatch[1]} 天事件`;
+  return tag;
+}
+
 export function translateReason(language: Language, reason: string): string {
   if (language === 'en') return reason;
   const patternTranslations: Array<[RegExp, (match: RegExpMatchArray) => string]> = [

@@ -1,11 +1,20 @@
 import type { CreditSpreadCandidate, CreditSpreadStrategyType } from '../types';
+import type { Language } from '../i18n';
 
-const EXPIRY_FORMATTER = new Intl.DateTimeFormat('en-US', {
-  month: 'short',
-  day: 'numeric',
-  year: 'numeric',
-  timeZone: 'UTC',
-});
+const EXPIRY_FORMATTERS: Record<Language, Intl.DateTimeFormat> = {
+  en: new Intl.DateTimeFormat('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    timeZone: 'UTC',
+  }),
+  zh: new Intl.DateTimeFormat('zh-CN', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    timeZone: 'UTC',
+  }),
+};
 
 export function hasActionableCreditSpreadCandidates(
   candidates: CreditSpreadCandidate[],
@@ -34,6 +43,7 @@ export function getDefaultSelectedCreditSpreadSymbol(
 export function formatCreditSpreadTemplateHorizon(
   expiryISO: string | null | undefined,
   dte: number,
+  language: Language = 'en',
 ): string {
   if (!expiryISO) {
     return `${dte} DTE`;
@@ -44,7 +54,7 @@ export function formatCreditSpreadTemplateHorizon(
     return `${expiryISO} · ${dte} DTE`;
   }
 
-  return `${EXPIRY_FORMATTER.format(parsed)} · ${dte} DTE`;
+  return `${EXPIRY_FORMATTERS[language].format(parsed)} · ${dte} DTE`;
 }
 
 export function getCreditSpreadStrategyLabel(strategyType: CreditSpreadStrategyType): string {
