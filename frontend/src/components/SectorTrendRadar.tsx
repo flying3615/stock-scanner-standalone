@@ -39,7 +39,7 @@ function formatVolume(v: number): string {
     return v.toFixed(0);
 }
 
-function getSignalCopy(signal: SectorSignal, sector: EnhancedSectorData | undefined, language: Language) {
+export function getSectorSignalCopy(signal: SectorSignal, sector: EnhancedSectorData | undefined, language: Language) {
     const sectorName = translateSectorName(language, signal.sector);
     const rankDelta = sector?.rankDelta ?? 0;
     const currentRank = sector?.currentRank ?? 0;
@@ -279,7 +279,7 @@ function SignalPanel({ signals, sectors, language }: { signals: SectorSignal[]; 
                     const config = SIGNAL_CONFIG[sig.type];
                     const Icon = config.Icon;
                     const sector = sectors.find((item) => item.sector === sig.sector);
-                    const copy = getSignalCopy(sig, sector, language);
+                    const copy = getSectorSignalCopy(sig, sector, language);
                     return (
                         <div
                             key={i}
