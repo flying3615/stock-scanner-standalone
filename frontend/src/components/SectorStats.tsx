@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { translate, type Language } from '../i18n';
+import { translate, translateIndustryName, translateSectorName, type Language } from '../i18n';
 import type { Stock } from '../types';
 import { getSectorColorClass } from '../utils/sectorColors';
 
@@ -46,7 +46,7 @@ export function SectorStats({ stocks, language }: SectorStatsProps) {
                 <div className="flex flex-wrap gap-2">
                     {stats.sectors.map(([sector, count]) => (
                         <div key={sector} className={`flex items-center border rounded-md px-2 py-1 ${getSectorColorClass(sector)}`}>
-                            <span className="text-xs font-medium mr-2">{sector}</span>
+                            <span className="text-xs font-medium mr-2">{translateSectorName(language, sector)}</span>
                             <span className="text-xs font-mono font-bold bg-white/10 px-1.5 rounded">
                                 {count}
                             </span>
@@ -62,7 +62,7 @@ export function SectorStats({ stocks, language }: SectorStatsProps) {
                     <div className="flex flex-wrap gap-2">
                         {stats.industries.map(([industry, count]) => (
                             <span key={industry} className="text-[10px] text-gray-400 flex items-center gap-1">
-                                {industry}
+                                {translateIndustryName(language, industry)}
                                 <span className="text-gray-500">({count})</span>
                             </span>
                         ))}

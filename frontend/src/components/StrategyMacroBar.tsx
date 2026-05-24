@@ -1,6 +1,5 @@
-import { translate, type Language } from '../i18n';
+import { translate, translateMarketLabel, type Language } from '../i18n';
 import type { CreditSpreadStrategySnapshot } from '../types';
-import { getCreditSpreadStrategyLabel } from '../utils/callCredit';
 
 interface StrategyMacroBarProps {
     snapshot: CreditSpreadStrategySnapshot;
@@ -14,7 +13,7 @@ function formatSignedPercent(value: number): string {
 export function StrategyMacroBar({ snapshot, language }: StrategyMacroBarProps) {
     const tx = (key: Parameters<typeof translate>[1]) => translate(language, key);
     const regime = snapshot.macro?.overallRegime ?? 'UNAVAILABLE';
-    const strategyLabel = getCreditSpreadStrategyLabel(snapshot.strategyType);
+    const strategyLabel = snapshot.strategyType === 'BEAR_CALL_CREDIT' ? tx('bearCall') : tx('bullPut');
     const regimeTone = regime === 'RISK_OFF'
         ? 'border-red-500/30 bg-red-950/40 text-red-200'
         : regime === 'RISK_ON'
@@ -29,7 +28,7 @@ export function StrategyMacroBar({ snapshot, language }: StrategyMacroBarProps) 
                 <div className="flex items-start justify-between gap-3">
                     <div>
                         <p className="text-[11px] uppercase tracking-[0.24em] text-gray-400">{tx('macroRegime')}</p>
-                        <h2 className="mt-3 text-2xl font-semibold">{regime}</h2>
+                        <h2 className="mt-3 text-2xl font-semibold">{translateMarketLabel(language, regime)}</h2>
                     </div>
                     <div className="rounded-full border border-white/10 bg-black/20 px-3 py-1 text-xs text-gray-300">
                         {strategyLabel}
@@ -53,7 +52,7 @@ export function StrategyMacroBar({ snapshot, language }: StrategyMacroBarProps) 
                         <div className="mt-1 text-xs text-gray-500">{snapshot.macro?.dxy.symbol ?? 'N/A'}</div>
                     </div>
                     <div className={`text-right text-sm font-medium ${snapshot.macro?.dxy.trend === 'UP' ? 'text-red-300' : snapshot.macro?.dxy.trend === 'DOWN' ? 'text-emerald-300' : 'text-gray-400'}`}>
-                        <div>{snapshot.macro?.dxy.trend ?? 'N/A'}</div>
+                        <div>{translateMarketLabel(language, snapshot.macro?.dxy.trend)}</div>
                         <div className="mt-1 text-xs text-gray-500">
                             {snapshot.macro ? formatSignedPercent(snapshot.macro.dxy.changePercent) : '—'}
                         </div>
@@ -71,7 +70,7 @@ export function StrategyMacroBar({ snapshot, language }: StrategyMacroBarProps) 
                         <div className="mt-1 text-xs text-gray-500">{snapshot.macro?.vix.symbol ?? 'N/A'}</div>
                     </div>
                     <div className={`text-right text-sm font-medium ${snapshot.macro?.vix.status === 'RISING' ? 'text-red-300' : snapshot.macro?.vix.status === 'FALLING' ? 'text-emerald-300' : 'text-gray-400'}`}>
-                        <div>{snapshot.macro?.vix.status ?? 'N/A'}</div>
+                        <div>{translateMarketLabel(language, snapshot.macro?.vix.status)}</div>
                         <div className="mt-1 text-xs text-gray-500">
                             {snapshot.macro ? formatSignedPercent(snapshot.macro.vix.changePercent) : '—'}
                         </div>

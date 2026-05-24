@@ -3,7 +3,7 @@ import { Activity, BarChart2 } from 'lucide-react';
 import type { Stock, OptionSignal, StockSnapshot, NewsItem, ShortTermSignalScore } from '../types';
 import { MoneyFlowGauge } from './MoneyFlowGauge';
 import { getSectorColorClass } from '../utils/sectorColors';
-import { translate, type Language } from '../i18n';
+import { translate, translateMarketLabel, translateReason, translateSectorName, type Language } from '../i18n';
 
 type MetricStatus = 'good' | 'bad' | 'neutral';
 
@@ -38,13 +38,15 @@ function ScoreCard({
     score,
     tone,
     sub,
-    reasons
+    reasons,
+    language
 }: {
     label: string;
     score: string | number;
     tone: 'green' | 'cyan' | 'neutral';
     sub: string;
     reasons: string[];
+    language: Language;
 }) {
     const toneClass = tone === 'green'
         ? 'border-green-500/30 bg-green-500/10 text-green-300'
@@ -65,7 +67,7 @@ function ScoreCard({
                 <div className="mt-3 flex flex-wrap gap-2">
                     {reasons.slice(0, 3).map((reason) => (
                         <span key={reason} className="rounded border border-white/10 bg-black/20 px-2 py-1 text-[10px] text-gray-200">
-                            {reason}
+                            {translateReason(language, reason)}
                         </span>
                     ))}
                 </div>
@@ -163,7 +165,7 @@ export function StockDetailModal({
                         {/* Sector Badge */}
                         {selectedStock.sector && (
                             <div className={`mt-2 text-xs font-semibold px-2 py-1 rounded inline-block border ${getSectorColorClass(selectedStock.sector)}`}>
-                                {selectedStock.sector}
+                                {translateSectorName(language, selectedStock.sector)}
                             </div>
                         )}
                     </div>
@@ -200,13 +202,15 @@ export function StockDetailModal({
                                 tone={selectedStock.stockQuality && selectedStock.stockQuality.score >= 70 ? 'green' : 'neutral'}
                                 sub={tx('stockQualitySub')}
                                 reasons={selectedStock.stockQuality?.reasons ?? []}
+                                language={language}
                             />
                             <ScoreCard
                                 label={tx('shortTermSignal')}
                                 score={optionsData?.shortTermSignal ? optionsData.shortTermSignal.score : selectedStock.shortTermSignal?.score ?? 'N/A'}
                                 tone={(optionsData?.shortTermSignal?.score ?? selectedStock.shortTermSignal?.score ?? 0) >= 70 ? 'cyan' : 'neutral'}
-                                sub={`${tx('currentSetup')}: ${(optionsData?.shortTermSignal?.direction ?? selectedStock.shortTermSignal?.direction ?? 'neutral').toUpperCase()}`}
+                                sub={`${tx('currentSetup')}: ${translateMarketLabel(language, (optionsData?.shortTermSignal?.direction ?? selectedStock.shortTermSignal?.direction ?? 'neutral').toUpperCase())}`}
                                 reasons={optionsData?.shortTermSignal?.reasons ?? selectedStock.shortTermSignal?.reasons ?? []}
+                                language={language}
                             />
                         </div>
 
@@ -262,7 +266,7 @@ export function StockDetailModal({
                                     <div className="flex flex-wrap gap-2">
                                         {selectedStock.reasons.map(r => (
                                             <span key={r} className="px-2 py-1 bg-blue-500/10 text-blue-400 text-xs rounded border border-blue-500/20">
-                                                {r}
+                                                {translateReason(language, r)}
                                             </span>
                                         ))}
                                     </div>

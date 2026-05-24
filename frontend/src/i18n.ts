@@ -119,6 +119,44 @@ const translations = {
     setupsCurrent: 'setups in the current snapshot',
     usDollar: 'US Dollar',
     volatility: 'Volatility',
+    loadingRadar: 'Loading radar...',
+    noRadarDataYet: 'No Radar Data Yet',
+    radarDataHelp: 'Sector trends will appear here after the first daily close scan.',
+    radarTip: 'Tip: Data is collected automatically every day at 4:30 PM.',
+    rotationSignals: 'Rotation Signals',
+    sectorRankings: 'Sector Rankings',
+    stocks: 'Stocks',
+    volDelta: 'Vol Δ',
+    leader: 'Leader',
+    hotStreakTitle: 'Hot streak',
+    daysInTop3: 'days in Top 3',
+    dayTop3: 'd Top 3',
+    rank: 'rank',
+    gap: 'Gap',
+    leaderGapHelp: 'Gap between leader and sector average. A high gap means weak breadth.',
+    rankTrend: 'Rank trend',
+    lowerBetter: 'lower = better',
+    average: 'Avg',
+    hotStreak: 'Hot Streak',
+    emerging: 'Emerging',
+    divergence: 'Divergence',
+    decay: 'Decay',
+    top3: 'Top 3',
+    top5: 'Top 5',
+    top7: 'Top 7',
+    other: 'Other',
+    signalVolumeDivergence: 'Volume Divergence',
+    signalMomentumDecay: 'Momentum Decay',
+    signalBreadthWeakness: 'Breadth Weakness',
+    signalRankBreakout: 'Rank Breakout',
+    signalEmergingSector: 'Emerging Sector',
+    legendHotStreak: 'Top 3 for 3+ days',
+    legendEmerging: 'new entrant to Top 3',
+    legendDivergence: 'price + volume declining',
+    legendDecay: 'extended streak, rotation risk',
+    scoreLabel: 'Score',
+    resistance: 'Resistance',
+    support: 'Support',
   },
   zh: {
     appTitle: '股票信号扫描器',
@@ -238,6 +276,44 @@ const translations = {
     setupsCurrent: '个当前候选',
     usDollar: '美元',
     volatility: '波动率',
+    loadingRadar: '雷达加载中...',
+    noRadarDataYet: '暂无雷达数据',
+    radarDataHelp: '第一次收盘后扫描完成后，这里会显示板块趋势。',
+    radarTip: '提示：数据会在每天 16:30 自动采集。',
+    rotationSignals: '轮动信号',
+    sectorRankings: '板块排名',
+    stocks: '股票数',
+    volDelta: '量变化',
+    leader: '领涨',
+    hotStreakTitle: '连续强势',
+    daysInTop3: '天位于前三',
+    dayTop3: '天前三',
+    rank: '名次',
+    gap: '差距',
+    leaderGapHelp: '领涨股与板块均值的差距。差距过大说明板块广度偏弱。',
+    rankTrend: '排名趋势',
+    lowerBetter: '越低越好',
+    average: '均值',
+    hotStreak: '连续强势',
+    emerging: '新进入',
+    divergence: '背离',
+    decay: '衰减',
+    top3: '前三',
+    top5: '前五',
+    top7: '前七',
+    other: '其他',
+    signalVolumeDivergence: '量价背离',
+    signalMomentumDecay: '动量衰减',
+    signalBreadthWeakness: '广度偏弱',
+    signalRankBreakout: '排名突破',
+    signalEmergingSector: '新兴板块',
+    legendHotStreak: '连续 3 天以上位于前三',
+    legendEmerging: '新进入前三',
+    legendDivergence: '价格与成交量同步走弱',
+    legendDecay: '强势持续过久，存在轮动风险',
+    scoreLabel: '评分',
+    resistance: '阻力位',
+    support: '支撑位',
   },
 } as const;
 
@@ -245,6 +321,129 @@ export type TranslationKey = keyof typeof translations.en;
 
 export function translate(language: Language, key: TranslationKey): string {
   return translations[language][key] ?? translations.en[key];
+}
+
+const sectorTranslations: Record<string, string> = {
+  Technology: '科技',
+  Industrials: '工业',
+  'Financial Services': '金融服务',
+  'Consumer Cyclical': '可选消费',
+  'Consumer Defensive': '必需消费',
+  Healthcare: '医疗保健',
+  'Communication Services': '通信服务',
+  Energy: '能源',
+  Utilities: '公用事业',
+  'Real Estate': '房地产',
+  'Basic Materials': '基础材料',
+};
+
+const industryTranslations: Record<string, string> = {
+  'Computer Hardware': '计算机硬件',
+  Semiconductors: '半导体',
+  'Communication Equipment': '通信设备',
+  'Auto Manufacturers': '汽车制造',
+  'Aerospace & Defense': '航空航天与国防',
+  'Electrical Equipment & Parts': '电气设备与零部件',
+  'Software - Infrastructure': '基础设施软件',
+  Airlines: '航空公司',
+  'Capital Markets': '资本市场',
+  Banks: '银行',
+  Biotechnology: '生物科技',
+  'Medical Devices': '医疗设备',
+  'Oil & Gas E&P': '油气勘探与生产',
+  'Oil & Gas Integrated': '综合油气',
+  'Consumer Electronics': '消费电子',
+  'Internet Content & Information': '互联网内容与信息',
+  'Specialty Retail': '专业零售',
+  'Discount Stores': '折扣零售',
+  'Credit Services': '信贷服务',
+  'Asset Management': '资产管理',
+};
+
+const marketLabelTranslations: Record<string, string> = {
+  UP: '上行',
+  DOWN: '下行',
+  STABLE: '稳定',
+  RISING: '上升',
+  FALLING: '回落',
+  RISK_ON: '风险偏好',
+  RISK_OFF: '风险规避',
+  CHOPPY: '震荡',
+  BULLISH_MOMENTUM: '多头动量',
+  BEARISH_MOMENTUM: '空头动量',
+  BULLISH: '偏多',
+  BEARISH: '偏空',
+  NEUTRAL: '中性',
+  ACTIONABLE: '可行动',
+  WATCHLIST: '观察池',
+  UNAVAILABLE: '不可用',
+};
+
+export function translateSectorName(language: Language, sector: string): string {
+  if (language === 'en') return sector;
+  return sectorTranslations[sector] ?? sector;
+}
+
+export function translateIndustryName(language: Language, industry: string): string {
+  if (language === 'en') return industry;
+  return industryTranslations[industry] ?? industry;
+}
+
+export function translateMarketLabel(language: Language, value: string | undefined | null): string {
+  if (!value) return 'N/A';
+  if (language === 'en') return value.replaceAll('_', ' ');
+  return marketLabelTranslations[value] ?? value.replaceAll('_', ' ');
+}
+
+const reasonTranslations: Record<string, string> = {
+  'Strong profitability quality': '盈利质量强',
+  'Growth quality is supportive': '成长质量有支撑',
+  'Balance sheet quality is healthy': '资产负债表健康',
+  'Valuation remains reasonable': '估值仍较合理',
+  'Liquidity is sufficient for active monitoring': '流动性足够用于主动跟踪',
+  'Quality factors are mixed': '质量因子表现混合',
+  'High-quality options flow is present': '存在高质量期权流',
+  'Money flow confirms the short-term move': '资金流确认短线方向',
+  'Price momentum is active': '价格动量活跃',
+  'Signals are directionally aligned': '多个信号方向一致',
+  'Noisy or stale flow reduced the score': '噪音或过期资金流降低评分',
+  'Short-term setup is not compelling yet': '短线形态暂不够有吸引力',
+  'P/B unavailable': '市净率不可用',
+  'Using forward P/E (no trailing EPS)': '使用预期市盈率（无历史 EPS）',
+  'P/E unavailable': '市盈率不可用',
+  'ROE unavailable': 'ROE 不可用',
+  'Profit margin unavailable': '利润率不可用',
+  'Debt-to-equity unavailable': '负债/权益不可用',
+  'Growth data unavailable': '成长数据不可用',
+  'ROE very low (<2%)': 'ROE 很低（<2%）',
+  'Negative margin': '利润率为负',
+  'Low leverage': '杠杆较低',
+  'Debt within sector norm': '负债处于行业正常范围',
+  'Growth contracting': '成长收缩',
+};
+
+export function translateReason(language: Language, reason: string): string {
+  if (language === 'en') return reason;
+  const patternTranslations: Array<[RegExp, (match: RegExpMatchArray) => string]> = [
+    [/^P\/B very low \((.+)\)$/, (match) => `市净率很低（${match[1]}）`],
+    [/^P\/B attractive \(<(.+)\)$/, (match) => `市净率有吸引力（<${match[1]}）`],
+    [/^P\/B rich \(>~(.+)\)$/, (match) => `市净率偏贵（>~${match[1]}）`],
+    [/^P\/E cheap \((.+)\)$/, (match) => `市盈率便宜（${match[1]}）`],
+    [/^P\/E fair \(<(.+)\)$/, (match) => `市盈率合理（<${match[1]}）`],
+    [/^P\/E stretched \(>(.+)\)$/, (match) => `市盈率偏高（>${match[1]}）`],
+    [/^ROE excellent \((.+)\)$/, (match) => `ROE 优秀（${match[1]}）`],
+    [/^ROE solid \(>(.+)\)$/, (match) => `ROE 稳健（>${match[1]}）`],
+    [/^High margin \(>(.+)\)$/, (match) => `高利润率（>${match[1]}）`],
+    [/^Healthy margin \(>(.+)\)$/, (match) => `利润率健康（>${match[1]}）`],
+    [/^High debt \(>(.+)\)$/, (match) => `负债偏高（>${match[1]}）`],
+    [/^Growth strong \((.+)\)$/, (match) => `成长强劲（${match[1]}）`],
+    [/^Growth steady \((.+)\)$/, (match) => `成长稳定（${match[1]}）`],
+  ];
+  for (const [pattern, translateMatch] of patternTranslations) {
+    const match = reason.match(pattern);
+    if (match) return translateMatch(match);
+  }
+  return reasonTranslations[reason] ?? reason;
 }
 
 export function detectInitialLanguage(): Language {

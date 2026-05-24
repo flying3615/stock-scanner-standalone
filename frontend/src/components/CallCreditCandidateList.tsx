@@ -1,6 +1,6 @@
 import { translate, type Language } from '../i18n';
 import type { CreditSpreadCandidate } from '../types';
-import { formatCreditSpreadTemplateHorizon, getCreditSpreadAnchorLabel } from '../utils/callCredit';
+import { formatCreditSpreadTemplateHorizon } from '../utils/callCredit';
 
 interface CallCreditCandidateListProps {
     candidates: CreditSpreadCandidate[];
@@ -22,6 +22,7 @@ function formatVolume(value: number): string {
 
 export function CallCreditCandidateList({ candidates, selectedSymbol, onSelect, language }: CallCreditCandidateListProps) {
     const tx = (key: Parameters<typeof translate>[1]) => translate(language, key);
+    const getAnchorLabel = (candidate: CreditSpreadCandidate) => candidate.anchorType === 'RESISTANCE' ? tx('resistance') : tx('support');
 
     if (candidates.length === 0) {
         return (
@@ -67,7 +68,7 @@ export function CallCreditCandidateList({ candidates, selectedSymbol, onSelect, 
                                         ? 'bg-emerald-500/15 text-emerald-300'
                                         : 'bg-amber-500/15 text-amber-300'
                                 }`}>
-                                    {candidate.setupState}
+                                    {candidate.setupState === 'ACTIONABLE' ? tx('actionable') : tx('watchlist')}
                                 </span>
                                 <span className="rounded-full bg-neutral-800 px-2.5 py-1 text-[11px] text-gray-400">
                                     {tx('score')} {candidate.score.toFixed(1)}
@@ -93,7 +94,7 @@ export function CallCreditCandidateList({ candidates, selectedSymbol, onSelect, 
                                     <div className="mt-1 font-mono text-white">{formatVolume(candidate.volume)}</div>
                                 </div>
                                 <div className="rounded-2xl bg-black/20 px-3 py-2">
-                                    <div className="text-[11px] uppercase tracking-[0.18em] text-gray-500">{getCreditSpreadAnchorLabel(candidate)}</div>
+                                    <div className="text-[11px] uppercase tracking-[0.18em] text-gray-500">{getAnchorLabel(candidate)}</div>
                                     <div className="mt-1 font-mono text-white">${candidate.anchorLevel.toFixed(2)}</div>
                                 </div>
                             </div>

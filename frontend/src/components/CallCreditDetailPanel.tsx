@@ -1,6 +1,6 @@
 import { translate, type Language } from '../i18n';
 import type { CreditSpreadCandidate } from '../types';
-import { formatCreditSpreadTemplateHorizon, getCreditSpreadAnchorLabel } from '../utils/callCredit';
+import { formatCreditSpreadTemplateHorizon } from '../utils/callCredit';
 
 interface CallCreditDetailPanelProps {
     candidate: CreditSpreadCandidate | null;
@@ -9,6 +9,7 @@ interface CallCreditDetailPanelProps {
 
 export function CallCreditDetailPanel({ candidate, language }: CallCreditDetailPanelProps) {
     const tx = (key: Parameters<typeof translate>[1]) => translate(language, key);
+    const getAnchorLabel = (item: CreditSpreadCandidate) => item.anchorType === 'RESISTANCE' ? tx('resistance') : tx('support');
 
     if (!candidate) {
         return (
@@ -32,7 +33,7 @@ export function CallCreditDetailPanel({ candidate, language }: CallCreditDetailP
                 <div>
                     <div className="flex flex-wrap items-center gap-2">
                         <span className="rounded-full bg-neutral-800 px-2.5 py-1 text-[11px] uppercase tracking-[0.18em] text-gray-400">
-                            {candidate.setupState}
+                            {candidate.setupState === 'ACTIONABLE' ? tx('actionable') : tx('watchlist')}
                         </span>
                         <span className="rounded-full bg-neutral-800 px-2.5 py-1 text-[11px] text-gray-400">
                             {tx('score')} {candidate.score.toFixed(1)}
@@ -46,7 +47,7 @@ export function CallCreditDetailPanel({ candidate, language }: CallCreditDetailP
                 </div>
                 <div className="grid gap-3 sm:grid-cols-2">
                     <div className="rounded-3xl border border-white/5 bg-black/20 px-4 py-3">
-                        <div className="text-[11px] uppercase tracking-[0.18em] text-gray-500">{getCreditSpreadAnchorLabel(candidate)}</div>
+                        <div className="text-[11px] uppercase tracking-[0.18em] text-gray-500">{getAnchorLabel(candidate)}</div>
                         <div className="mt-1 font-mono text-xl text-white">${candidate.anchorLevel.toFixed(2)}</div>
                     </div>
                     <div className="rounded-3xl border border-white/5 bg-black/20 px-4 py-3">

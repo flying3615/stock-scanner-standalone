@@ -21,12 +21,11 @@ import { CallCreditCandidateList } from './components/CallCreditCandidateList';
 import { CallCreditDetailPanel } from './components/CallCreditDetailPanel';
 import { getSectorColorClass } from './utils/sectorColors';
 import {
-  getCreditSpreadStrategyLabel,
   getDefaultSelectedCreditSpreadSymbol,
   getVisibleCreditSpreadCandidates,
   hasActionableCreditSpreadCandidates,
 } from './utils/callCredit';
-import { detectInitialLanguage, translate, type Language } from './i18n';
+import { detectInitialLanguage, translate, translateIndustryName, translateMarketLabel, translateSectorName, type Language } from './i18n';
 
 // API Base URL
 const rawBase = (import.meta.env.VITE_API_BASE ?? '').replace(/\/$/, '');
@@ -311,7 +310,7 @@ function App() {
               <p className="text-2xl font-semibold">{macroData.dxy.price.toFixed(2)}</p>
             </div>
             <div className={`text-sm font-bold ${macroData.dxy.trend === 'UP' ? 'text-red-400' : macroData.dxy.trend === 'DOWN' ? 'text-green-400' : 'text-gray-400'}`}>
-              {macroData.dxy.trend}
+              {translateMarketLabel(language, macroData.dxy.trend)}
             </div>
           </div>
           <div id="macro-vix" className="bg-slate-900/70 border border-slate-700/50 rounded-xl p-4 flex items-center justify-between shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
@@ -320,13 +319,13 @@ function App() {
               <p className="text-2xl font-semibold">{macroData.vix.price.toFixed(2)}</p>
             </div>
             <div className={`text-sm font-bold ${macroData.vix.status === 'RISING' ? 'text-red-400' : macroData.vix.status === 'FALLING' ? 'text-green-400' : 'text-gray-400'}`}>
-              {macroData.vix.status}
+              {translateMarketLabel(language, macroData.vix.status)}
             </div>
           </div>
           <div className="bg-slate-900/70 border border-slate-700/50 rounded-xl p-4 flex flex-col justify-center shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
             <p className="text-xs uppercase text-slate-500">{tx('macroRegime')}</p>
             <p className="text-2xl font-semibold text-white" id="macro-regime">
-              {macroData.overallRegime.replace('_', ' ')}
+              {translateMarketLabel(language, macroData.overallRegime)}
             </p>
             {macroLoading && <span className="text-[10px] text-slate-500">{tx('refreshing')}</span>}
           </div>
@@ -494,7 +493,9 @@ function App() {
                 <div className="space-y-4">
                   <div className="flex items-end justify-between gap-4">
                     <div>
-                      <h2 className="text-xl font-semibold text-white">{getCreditSpreadStrategyLabel(selectedStrategyType)} {tx('strategyCandidates')}</h2>
+                      <h2 className="text-xl font-semibold text-white">
+                        {selectedStrategyType === 'BEAR_CALL_CREDIT' ? tx('bearCall') : tx('bullPut')} {tx('strategyCandidates')}
+                      </h2>
                       <p className="mt-1 text-sm text-gray-400">
                         {hasActionableStrategies && !showStrategyWatchlist
                           ? tx('actionableHelp')
@@ -606,7 +607,7 @@ function App() {
       ) : dashboardView === 'radar' ? (
         <div className="animate-in fade-in duration-500">
           <h2 className="text-xl font-bold mb-4 text-gray-300">{tx('sectorStrategyTitle')}</h2>
-          <SectorTrendRadar apiUrl={API_URL} />
+          <SectorTrendRadar apiUrl={API_URL} language={language} />
         </div>
       ) : (
         loading ? (
@@ -627,7 +628,7 @@ function App() {
                           <p className="text-xs text-gray-500">{idx.symbol}</p>
                         </div>
                         <span className={`text-[10px] font-semibold px-2 py-1 rounded border ${idx.regime.includes('BULLISH') ? 'border-green-500/40 text-green-400' : idx.regime.includes('BEARISH') ? 'border-red-500/40 text-red-400' : 'border-yellow-500/30 text-yellow-300'}`}>
-                          {idx.regime.replace('_', ' ')}
+                          {translateMarketLabel(language, idx.regime)}
                         </span>
                       </div>
                       <div className="flex items-end justify-between">
@@ -638,7 +639,7 @@ function App() {
                           </p>
                         </div>
                         <div className="text-sm text-gray-400" id={scoreId}>
-                          Score: {idx.score.toFixed(1)}/6
+                          {tx('scoreLabel')}: {idx.score.toFixed(1)}/6
                         </div>
                       </div>
                       <div className="mt-4 flex items-center gap-4">
@@ -668,7 +669,7 @@ function App() {
                       <p className="text-xs text-gray-500 truncate max-w-[150px]">{stock.name}</p>
                       {stock.industry && (
                         <p className="text-[10px] text-gray-600 truncate max-w-[150px] mt-0.5" title={stock.industry}>
-                          {stock.industry}
+                          {translateIndustryName(language, stock.industry)}
                         </p>
                       )}
                     </div>
@@ -679,7 +680,7 @@ function App() {
                       </div>
                       {stock.sector && (
                         <span className={`text-[9px] px-1.5 py-0.5 rounded border truncate max-w-[120px] ${getSectorColorClass(stock.sector)}`} title={stock.sector}>
-                          {stock.sector}
+                          {translateSectorName(language, stock.sector)}
                         </span>
                       )}
                     </div>
